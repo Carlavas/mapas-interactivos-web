@@ -342,6 +342,8 @@
                 <select id="townSelect">
                     <option value="">Selecciona un pueblo...</option>
                     <!-- Aquí debes añadir las opciones según los JSON que generes con Electron -->
+                    <option value="javea-y-denia">Jávea y Dénia</option>
+
                     <!-- Ejemplo: si generas "javea.json", la opción sería: -->
                     <!-- <option value="javea">Jávea</option> -->
                     
@@ -352,6 +354,7 @@
                     <option value="calpe">Calpe</option>
                     <!-- Más opciones según tus archivos JSON -->
                 </select>
+                
             </div>
             <div class="score-board">
                 <div class="score-item">
@@ -446,7 +449,8 @@
                     
                     // URL del repositorio público de GitHub donde están los JSON generados por Electron
                     // CAMBIA ESTA URL POR LA DE TU REPOSITORIO:
-                    const baseUrl = 'https://raw.githubusercontent.com/TU-USUARIO/mapas-interactivos-json/main/';
+                    const baseUrl = 'const baseUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
+';
                     const url = `${baseUrl}${townName}.json`;
                     
                     const response = await fetch(url);
