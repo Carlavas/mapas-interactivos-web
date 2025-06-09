@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Mapas Interactivos</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 10px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .town-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .town-selector select {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            color: #4a5568;
+            width: 100%;
+            max-width: 300px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .town-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .score-board {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .score-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .score-item .icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .points { background: #48bb78; }
+        .completed { background: #4299e1; }
+        .total { background: #ed8936; }
+
+        .map-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: 20px;
+            width: 95%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #667eea;
+        }
+
+        .question-content h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .question-content p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .question-section {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .question-section h4 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .answers {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .answer-btn {
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+
+        .answer-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+        }
+
+        .answer-btn.correct {
+            background: #c6f6d5;
+            border-color: #48bb78;
+            color: #22543d;
+        }
+
+        .answer-btn.incorrect {
+            background: #fed7d7;
+            border-color: #f56565;
+            color: #742a2a;
+        }
+
+        .answer-btn.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .result-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .result-message.correct {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .result-message.incorrect {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #4a5568;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .completed-marker {
+            filter: hue-rotate(120deg) saturate(1.5);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            #map {
+                height: 350px;
+            }
+            
+            .modal-content {
+                margin: 10% auto;
+                padding: 20px;
+                width: 98%;
+            }
+            
+            .score-board {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .score-item {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #map {
+                height: 300px;
+            }
+            
+            .answer-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Juego de Mapas Interactivos</h1>
+            <div class="town-selector">
+                <select id="townSelect">
+                    <option value="">Selecciona un pueblo...</option>
+                    <!-- Aquí debes añadir las opciones según los JSON que generes con Electron -->
+                    <!-- Ejemplo: si generas "javea.json", la opción sería: -->
+                    <!-- <option value="javea">Jávea</option> -->
+                    
+                    <!-- AÑADE TUS PUEBLOS AQUÍ: -->
+                    <option value="javea">Jávea</option>
+                    <option value="denia">Dénia</option>
+                    <option value="altea">Altea</option>
+                    <option value="calpe">Calpe</option>
+                    <!-- Más opciones según tus archivos JSON -->
+                </select>
+            </div>
+            <div class="score-board">
+                <div class="score-item">
+                    <div class="icon points">🏆</div>
+                    <span>Puntos: <span id="totalPoints">0</span></span>
+                </div>
+                <div class="score-item">
+                    <div class="icon completed">✅</div>
+                    <span>Completados: <span id="completedCount">0</span></span>
+                </div>
+                <div class="score-item">
+                    <div class="icon total">📍</div>
+                    <span>Total: <span id="totalPoints">0</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Modal para preguntas -->
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="questionContent" class="question-content">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <script>
+        class InteractiveMapGame {
+            constructor() {
+                this.map = null;
+                this.currentData = null;
+                this.markers = [];
+                this.completedQuestions = new Set();
+                this.totalPoints = 0;
+                this.currentQuestion = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.initMap();
+                this.bindEvents();
+                this.loadGameState();
+            }
+
+            initMap() {
+                // Inicializar mapa centrado en la Comunidad Valenciana
+                this.map = L.map('map').setView([38.7, -0.5], 10);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(this.map);
+            }
+
+            bindEvents() {
+                const townSelect = document.getElementById('townSelect');
+                townSelect.addEventListener('change', (e) => {
+                    if (e.target.value) {
+                        this.loadTownData(e.target.value);
+                    } else {
+                        this.clearMap();
+                    }
+                });
+
+                // Modal events
+                const modal = document.getElementById('questionModal');
+                const closeBtn = document.querySelector('.close');
+                
+                closeBtn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+                
+                window.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            }
+
+            async loadTownData(townName) {
+                try {
+                    this.showLoading();
+                    
+                    // URL del repositorio público de GitHub donde están los JSON generados por Electron
+                    // CAMBIA ESTA URL POR LA DE TU REPOSITORIO:
+                    const baseUrl = 'https://raw.githubusercontent.com/TU-USUARIO/mapas-interactivos-json/main/';
+                    const url = `${baseUrl}${townName}.json`;
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const electronData = await response.json();
+                    
+                    // Convertir formato de Electron al formato esperado por la web
+                    const webData = this.convertElectronDataToWebFormat(electronData);
+                    
+                    this.currentData = webData;
+                    this.displayPointsOnMap(webData);
+                    this.hideLoading();
+                    
+                } catch (error) {
+                    console.error('Error loading town data:', error);
+                    this.showError(`Error al cargar ${townName}.json desde GitHub. Verifica que el archivo existe en el repositorio.`);
+                    
+                    // Opcional: usar datos de ejemplo para testing
+                    const data = this.getSimulatedData(townName);
+                    this.currentData = data;
+                    this.displayPointsOnMap(data);
+                    this.hideLoading();
+                }
+            }
+
+            // Convertir el formato JSON de Electron al formato que espera la web
+            convertElectronDataToWebFormat(electronData) {
+                // Calcular el centro del mapa basado en los lugares
+                let centerLat = 0, centerLng = 0;
+                if (electronData.lugares && electronData.lugares.length > 0) {
+                    centerLat = electronData.lugares.reduce((sum, lugar) => sum + lugar.lat, 0) / electronData.lugares.length;
+                    centerLng = electronData.lugares.reduce((sum, lugar) => sum + lugar.lng, 0) / electronData.lugares.length;
+                }
+
+                return {
+                    name: electronData.pueblo || 'Pueblo',
+                    center: [centerLat, centerLng],
+                    points: electronData.lugares ? electronData.lugares.map((lugar, index) => ({
+                        id: index + 1,
+                        name: lugar.nombre,
+                        description: lugar.descripcion,
+                        lat: lugar.lat,
+                        lng: lugar.lng,
+                        question: {
+                            text: lugar.pregunta.texto,
+                            answers: lugar.pregunta.respuestas.filter(r => r && r.trim() !== ''), // Filtrar respuestas vacías
+                            correct: lugar.pregunta.correcta,
+                            points: 10 // Puntos por defecto, puedes ajustarlo
+                        }
+                    })) : []
+                };
+            }
+
+            getSimulatedData(townName) {
+                const townData = {
+                    javea: {
+                        name: "Jávea",
+                        center: [38.7908, 0.1316],
+                        points: [
+                            {
+                                id: 1,
+                                name: "Cabo de la Nao",
+                                description: "Impresionante cabo con vistas al Mediterráneo y faro histórico.",
+                                lat: 38.7456,
+                                lng: 0.2167,
+                                question: {
+                                    text: "¿En qué año se construyó el faro del Cabo de la Nao?",
+                                    answers: ["1862", "1845", "1878", "1823"],
+                                    correct: 0,
+                                    points: 10
+                                }
+                            },
+                            {
+                                id: 2,
+                                name: "Casco Histórico",
+                                description: "Centro histórico con arquitectura tradicional valenciana.",
+                                lat: 38.7908,
+                                lng: 0.1316,
+                                question: {
+                                    text: "¿Cuál es el nombre original árabe de Jávea?",
+                                    answers: ["Xàbia", "Al-Yazirat", "Saetabis", "Xara"],
+                                    correct: 0,
+                                    points: 15
+                                }
+                            },
+                            {
+                                id: 3,
+                                name: "Playa del Arenal",
+                                description: "Principal playa urbana de Jávea con arena fina.",
+                                lat: 38.7711,
+                                lng: 0.1614,
+                                question: {
+                                    text: "¿Qué longitud aproximada tiene la Playa del Arenal?",
+                                    answers: ["500 metros", "800 metros", "1.2 kilómetros", "2 kilómetros"],
+                                    correct: 1,
+                                    points: 10
+                                }
+                            }
+                        ]
+                    },
+                    denia: {
+                        name: "Dénia",
+                        center: [38.8408, 0.1058],
+                        points: [
+                            {
+                                id: 1,
+                                name: "Castillo de Dénia",
+                                description: "Fortaleza árabe del siglo XI con vistas panorámicas.",
+                                lat: 38.8408,
+                                lng: 0.1058,
+                                question: {
+                                    text: "¿En qué siglo se construyó el Castillo de Dénia?",
+                                    answers: ["Siglo X", "Siglo XI", "Siglo XII", "Siglo IX"],
+                                    correct: 1,
+                                    points: 15
+                                }
+                            },
+                            {
+                                id: 2,
+                                name: "Parque Natural del Montgó",
+                                description: "Espacio natural protegido con gran biodiversidad.",
+                                lat: 38.8167,
+                                lng: 0.1333,
+                                question: {
+                                    text: "¿Cuál es la altura máxima del Montgó?",
+                                    answers: ["653 metros", "725 meters", "753 metros", "689 metros"],
+                                    correct: 2,
+                                    points: 20
+                                }
+                            }
+                        ]
+                    }
+                };
+                
+                return townData[townName] || townData.javea;
+            }
+
+            displayPointsOnMap(data) {
+                this.clearMap();
+                
+                // Centrar el mapa en el pueblo
+                this.map.setView(data.center, 13);
+                
+                // Añadir marcadores
+                data.points.forEach(point => {
+                    const isCompleted = this.completedQuestions.has(point.id);
+                    
+                    const marker = L.marker([point.lat, point.lng])
+                        .addTo(this.map)
+                        .bindPopup(`<b>${point.name}</b><br>${point.description}`)
+                        .on('click', () => this.showQuestion(point));
+                    
+                    if (isCompleted) {
+                        marker.getElement().classList.add('completed-marker');
+                    }
+                    
+                    this.markers.push(marker);
+                });
+                
+                this.updateScoreBoard();
+            }
+
+            showQuestion(point) {
+                this.currentQuestion = point;
+                const modal = document.getElementById('questionModal');
+                const content = document.getElementById('questionContent');
+                
+                const isCompleted = this.completedQuestions.has(point.id);
+                
+                content.innerHTML = `
+                    <h3>${point.name}</h3>
+                    <p>${point.description}</p>
+                    
+                    <div class="question-section">
+                        <h4>${point.question.text}</h4>
+                        <div class="answers" id="answers">
+                            ${point.question.answers.map((answer, index) => 
+                                `<button class="answer-btn ${isCompleted ? 'disabled' : ''}" 
+                                         data-index="${index}" 
+                                         ${isCompleted ? 'disabled' : ''}>
+                                    ${answer}
+                                </button>`
+                            ).join('')}
+                        </div>
+                        <div id="resultMessage"></div>
+                        ${isCompleted ? '<div class="result-message correct">✅ ¡Ya has completado esta pregunta!</div>' : ''}
+                    </div>
+                `;
+                
+                if (!isCompleted) {
+                    this.bindAnswerEvents();
+                }
+                
+                modal.style.display = 'block';
+            }
+
+            bindAnswerEvents() {
+                const answerButtons = document.querySelectorAll('.answer-btn');
+                answerButtons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        if (e.target.disabled) return;
+                        
+                        const selectedIndex = parseInt(e.target.dataset.index);
+                        this.handleAnswer(selectedIndex);
+                    });
+                });
+            }
+
+            handleAnswer(selectedIndex) {
+                const question = this.currentQuestion.question;
+                const isCorrect = selectedIndex === question.correct;
+                const answerButtons = document.querySelectorAll('.answer-btn');
+                const resultDiv = document.getElementById('resultMessage');
+                
+                // Deshabilitar todos los botones
+                answerButtons.forEach((btn, index) => {
+                    btn.disabled = true;
+                    btn.classList.add('disabled');
+                    
+                    if (index === question.correct) {
+                        btn.classList.add('correct');
+                    } else if (index === selectedIndex && !isCorrect) {
+                        btn.classList.add('incorrect');
+                    }
+                });
+                
+                // Mostrar resultado
+                if (isCorrect) {
+                    resultDiv.innerHTML = `<div class="result-message correct">¡Correcto! +${question.points} puntos</div>`;
+                    this.totalPoints += question.points;
+                    this.completedQuestions.add(this.currentQuestion.id);
+                } else {
+                    resultDiv.innerHTML = `<div class="result-message incorrect">Incorrecto. La respuesta correcta era: ${question.answers[question.correct]}</div>`;
+                    this.completedQuestions.add(this.currentQuestion.id);
+                }
+                
+                this.updateScoreBoard();
+                this.updateMarkerAppearance(this.currentQuestion.id);
+                this.saveGameState();
+            }
+
+            updateMarkerAppearance(pointId) {
+                // Actualiza la apariencia del marcador para mostrar que está completado
+                const marker = this.markers.find(m => m.pointId === pointId);
+                if (marker && marker.getElement()) {
+                    marker.getElement().classList.add('completed-marker');
+                }
+            }
+
+            updateScoreBoard() {
+                document.getElementById('totalPoints').textContent = this.totalPoints;
+                document.getElementById('completedCount').textContent = this.completedQuestions.size;
+                
+                const totalPointsSpan = document.querySelectorAll('#totalPoints')[1];
+                if (totalPointsSpan && this.currentData) {
+                    totalPointsSpan.textContent = this.currentData.points.length;
+                }
+            }
+
+            clearMap() {
+                this.markers.forEach(marker => {
+                    this.map.removeLayer(marker);
+                });
+                this.markers = [];
+            }
+
+            showLoading() {
+                const mapContainer = document.querySelector('.map-container');
+                mapContainer.innerHTML = '<div class="loading">Cargando datos del pueblo...</div>';
+            }
+
+            hideLoading() {
+                const mapContainer = document.querySelector('.map-container');
+                mapContainer.innerHTML = '<div id="map"></div>';
+                this.initMap();
+            }
+
+            showError(message) {
+                const mapContainer = document.querySelector('.map-container');
+                mapContainer.innerHTML = `<div class="error">${message}</div><div id="map"></div>`;
+                setTimeout(() => {
+                    this.initMap();
+                }, 1000);
+            }
+
+            saveGameState() {
+                const gameState = {
+                    completedQuestions: Array.from(this.completedQuestions),
+                    totalPoints: this.totalPoints,
+                    currentTown: document.getElementById('townSelect').value
+                };
+                // En un entorno real, esto se guardaría en localStorage
+                // localStorage.setItem('mapGameState', JSON.stringify(gameState));
+            }
+
+            loadGameState() {
+                // En un entorno real, esto cargaría desde localStorage
+                // const saved = localStorage.getItem('mapGameState');
+                // if (saved) {
+                //     const gameState = JSON.parse(saved);
+                //     this.completedQuestions = new Set(gameState.completedQuestions || []);
+                //     this.totalPoints = gameState.totalPoints || 0;
+                //     if (gameState.currentTown) {
+                //         document.getElementById('townSelect').value = gameState.currentTown;
+                //         this.loadTownData(gameState.currentTown);
+                //     }
+                // }
+            }
+        }
+
+        // Inicializar la aplicación cuando se carga el DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            new InteractiveMapGame();
+        });
+    </script>
+</body>
+</html>
