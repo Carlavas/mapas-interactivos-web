@@ -112,6 +112,7 @@
             margin-bottom: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
+            position: relative;
         }
 
         #map {
@@ -119,6 +120,37 @@
             width: 100%;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            bottom: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .error-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            bottom: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
         }
 
         .modal {
@@ -341,15 +373,9 @@
             <div class="town-selector">
                 <select id="townSelect">
                     <option value="">Selecciona un pueblo...</option>
-                    <!-- Aquí debes añadir las opciones según los JSON que generes con Electron -->
                     <option value="javea-y-denia">Jávea y Dénia</option>
-
-                    <!-- Ejemplo: si generas "javea.json", la opción sería: -->
-                    <!-- <option value="javea">Jávea</option> -->
-                    
-                    <!-- AÑADE TUS PUEBLOS AQUÍ: -->
-                    
-                    <!-- Más opciones según tus archivos JSON -->
+                    <option value="javea">Jávea</option>
+                    <option value="denia">Dénia</option>
                 </select>
                 
             </div>
@@ -364,13 +390,19 @@
                 </div>
                 <div class="score-item">
                     <div class="icon total">📍</div>
-                    <span>Total: <span id="totalPoints">0</span></span>
+                    <span>Total: <span id="totalLocations">0</span></span>
                 </div>
             </div>
         </div>
 
         <div class="map-container">
             <div id="map"></div>
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading">Cargando datos del pueblo...</div>
+            </div>
+            <div class="error-overlay" id="errorOverlay">
+                <div class="error" id="errorMessage"></div>
+            </div>
         </div>
     </div>
 
@@ -407,12 +439,24 @@
             }
 
             initMap() {
+                // Limpiar el mapa existente si existe
+                if (this.map) {
+                    this.map.remove();
+                }
+                
                 // Inicializar mapa centrado en la Comunidad Valenciana
                 this.map = L.map('map').setView([38.7, -0.5], 10);
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(this.map);
+
+                // Forzar redibujado del mapa después de un breve delay
+                setTimeout(() => {
+                    if (this.map) {
+                        this.map.invalidateSize();
+                    }
+                }, 100);
             }
 
             bindEvents() {
@@ -422,6 +466,7 @@
                         this.loadTownData(e.target.value);
                     } else {
                         this.clearMap();
+                        this.hideOverlays();
                     }
                 });
 
@@ -445,9 +490,7 @@
                     this.showLoading();
                     
                     // URL del repositorio público de GitHub donde están los JSON generados por Electron
-                    // CAMBIA ESTA URL POR LA DE TU REPOSITORIO:
-                    const baseUrl = 'const baseUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
-';
+                    const baseUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
                     const url = `${baseUrl}${townName}.json`;
                     
                     const response = await fetch(url);
@@ -463,17 +506,21 @@
                     
                     this.currentData = webData;
                     this.displayPointsOnMap(webData);
-                    this.hideLoading();
+                    this.hideOverlays();
                     
                 } catch (error) {
                     console.error('Error loading town data:', error);
-                    this.showError(`Error al cargar ${townName}.json desde GitHub. Verifica que el archivo existe en el repositorio.`);
                     
-                    // Opcional: usar datos de ejemplo para testing
+                    // Usar datos de ejemplo para testing
+                    console.log('Usando datos de ejemplo para:', townName);
                     const data = this.getSimulatedData(townName);
                     this.currentData = data;
                     this.displayPointsOnMap(data);
-                    this.hideLoading();
+                    this.hideOverlays();
+                    
+                    // Mostrar mensaje informativo en lugar de error
+                    this.showError(`Usando datos de ejemplo para ${townName}. Para usar datos reales, sube el archivo ${townName}.json a tu repositorio de GitHub.`);
+                    setTimeout(() => this.hideOverlays(), 3000);
                 }
             }
 
@@ -497,9 +544,9 @@
                         lng: lugar.lng,
                         question: {
                             text: lugar.pregunta.texto,
-                            answers: lugar.pregunta.respuestas.filter(r => r && r.trim() !== ''), // Filtrar respuestas vacías
+                            answers: lugar.pregunta.respuestas.filter(r => r && r.trim() !== ''),
                             correct: lugar.pregunta.correcta,
-                            points: 10 // Puntos por defecto, puedes ajustarlo
+                            points: 10
                         }
                     })) : []
                 };
@@ -583,6 +630,64 @@
                                 }
                             }
                         ]
+                    },
+                    "javea-y-denia": {
+                        name: "Jávea y Dénia",
+                        center: [38.8158, 0.1187],
+                        points: [
+                            {
+                                id: 1,
+                                name: "Cabo de la Nao (Jávea)",
+                                description: "Impresionante cabo con vistas al Mediterráneo y faro histórico.",
+                                lat: 38.7456,
+                                lng: 0.2167,
+                                question: {
+                                    text: "¿En qué año se construyó el faro del Cabo de la Nao?",
+                                    answers: ["1862", "1845", "1878", "1823"],
+                                    correct: 0,
+                                    points: 10
+                                }
+                            },
+                            {
+                                id: 2,
+                                name: "Castillo de Dénia",
+                                description: "Fortaleza árabe del siglo XI con vistas panorámicas.",
+                                lat: 38.8408,
+                                lng: 0.1058,
+                                question: {
+                                    text: "¿En qué siglo se construyó el Castillo de Dénia?",
+                                    answers: ["Siglo X", "Siglo XI", "Siglo XII", "Siglo IX"],
+                                    correct: 1,
+                                    points: 15
+                                }
+                            },
+                            {
+                                id: 3,
+                                name: "Playa del Arenal (Jávea)",
+                                description: "Principal playa urbana de Jávea con arena fina.",
+                                lat: 38.7711,
+                                lng: 0.1614,
+                                question: {
+                                    text: "¿Qué longitud aproximada tiene la Playa del Arenal?",
+                                    answers: ["500 metros", "800 metros", "1.2 kilómetros", "2 kilómetros"],
+                                    correct: 1,
+                                    points: 10
+                                }
+                            },
+                            {
+                                id: 4,
+                                name: "Parque Natural del Montgó",
+                                description: "Espacio natural protegido con gran biodiversidad.",
+                                lat: 38.8167,
+                                lng: 0.1333,
+                                question: {
+                                    text: "¿Cuál es la altura máxima del Montgó?",
+                                    answers: ["653 metros", "725 meters", "753 metros", "689 metros"],
+                                    correct: 2,
+                                    points: 20
+                                }
+                            }
+                        ]
                     }
                 };
                 
@@ -593,7 +698,7 @@
                 this.clearMap();
                 
                 // Centrar el mapa en el pueblo
-                this.map.setView(data.center, 13);
+                this.map.setView(data.center, 12);
                 
                 // Añadir marcadores
                 data.points.forEach(point => {
@@ -604,14 +709,27 @@
                         .bindPopup(`<b>${point.name}</b><br>${point.description}`)
                         .on('click', () => this.showQuestion(point));
                     
+                    marker.pointId = point.id;
+                    
                     if (isCompleted) {
-                        marker.getElement().classList.add('completed-marker');
+                        setTimeout(() => {
+                            if (marker.getElement()) {
+                                marker.getElement().classList.add('completed-marker');
+                            }
+                        }, 100);
                     }
                     
                     this.markers.push(marker);
                 });
                 
                 this.updateScoreBoard();
+                
+                // Forzar redibujado del mapa
+                setTimeout(() => {
+                    if (this.map) {
+                        this.map.invalidateSize();
+                    }
+                }, 200);
             }
 
             showQuestion(point) {
@@ -694,7 +812,6 @@
             }
 
             updateMarkerAppearance(pointId) {
-                // Actualiza la apariencia del marcador para mostrar que está completado
                 const marker = this.markers.find(m => m.pointId === pointId);
                 if (marker && marker.getElement()) {
                     marker.getElement().classList.add('completed-marker');
@@ -705,9 +822,8 @@
                 document.getElementById('totalPoints').textContent = this.totalPoints;
                 document.getElementById('completedCount').textContent = this.completedQuestions.size;
                 
-                const totalPointsSpan = document.querySelectorAll('#totalPoints')[1];
-                if (totalPointsSpan && this.currentData) {
-                    totalPointsSpan.textContent = this.currentData.points.length;
+                if (this.currentData) {
+                    document.getElementById('totalLocations').textContent = this.currentData.points.length;
                 }
             }
 
@@ -719,22 +835,17 @@
             }
 
             showLoading() {
-                const mapContainer = document.querySelector('.map-container');
-                mapContainer.innerHTML = '<div class="loading">Cargando datos del pueblo...</div>';
+                document.getElementById('loadingOverlay').style.display = 'flex';
             }
 
-            hideLoading() {
-                const mapContainer = document.querySelector('.map-container');
-                mapContainer.innerHTML = '<div id="map"></div>';
-                this.initMap();
+            hideOverlays() {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('errorOverlay').style.display = 'none';
             }
 
             showError(message) {
-                const mapContainer = document.querySelector('.map-container');
-                mapContainer.innerHTML = `<div class="error">${message}</div><div id="map"></div>`;
-                setTimeout(() => {
-                    this.initMap();
-                }, 1000);
+                document.getElementById('errorMessage').textContent = message;
+                document.getElementById('errorOverlay').style.display = 'flex';
             }
 
             saveGameState() {
@@ -744,7 +855,7 @@
                     currentTown: document.getElementById('townSelect').value
                 };
                 // En un entorno real, esto se guardaría en localStorage
-                // localStorage.setItem('mapGameState', JSON.stringify(gameState));
+                console.log('Game state:', gameState);
             }
 
             loadGameState() {
