@@ -129,6 +129,16 @@
             background: #cbd5e0;
         }
 
+        .refresh-btn {
+            background: #48bb78;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .refresh-btn:hover {
+            background: #38a169;
+        }
+
         .score-board {
             background: rgba(255, 255, 255, 0.9);
             padding: 15px;
@@ -423,6 +433,30 @@
             stroke-width: 2;
         }
 
+        .available-files {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .file-tag {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -479,12 +513,14 @@
             <h1>🗺️ Juego de Mapas Interactivos</h1>
             <div class="town-selector">
                 <select id="townSelect">
-                    <option value="">Selecciona un pueblo...</option>
-                    <option value="javea-y-denia">Jávea y Dénia</option>
-               <option value="institutos-prueba">Prueba</option>
-                        <option value="prueba-2">Prueba2</option>
-                    
+                    <option value="">Cargando pueblos...</option>
                 </select>
+                <button class="btn refresh-btn" id="refreshBtn">🔄 Actualizar Lista</button>
+            </div>
+
+            <div class="available-files" id="availableFiles" style="display: none;">
+                <strong>📂 Archivos disponibles:</strong>
+                <div class="file-list" id="fileList"></div>
             </div>
 
             <div class="location-status" id="locationStatus">
@@ -562,6 +598,11 @@
                 this.locationEnabled = false;
                 this.proximityThreshold = 50; // metros
                 this.lastProximityCheck = {};
+                this.availableFiles = []; // Cache de archivos disponibles
+                
+                // URL base del repositorio JSON
+                this.jsonRepoUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
+                this.githubApiUrl = 'https://api.github.com/repos/Carlavas/mapas-interactivos-json/contents/';
                 
                 this.init();
             }
@@ -570,7 +611,101 @@
                 this.initMap();
                 this.bindEvents();
                 this.loadGameState();
+                this.loadAvailableFiles(); // Cargar archivos disponibles automáticamente
                 this.requestLocation();
+            }
+
+            // Nuevo método para cargar archivos disponibles dinámicamente
+            async loadAvailableFiles() {
+                try {
+                    console.log('Cargando lista de archivos disponibles...');
+                    
+                    // Usar la API de GitHub para obtener la lista de archivos
+                    const response = await fetch(this.githubApiUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const files = await response.json();
+                    
+                    // Filtrar solo archivos .json
+                    this.availableFiles = files
+                        .filter(file => file.name.endsWith('.json') && file.type === 'file')
+                        .map(file => ({
+                            name: file.name.replace('.json', ''),
+                            displayName: this.formatDisplayName(file.name.replace('.json', '')),
+                            size: file.size,
+                            lastModified: file.download_url // Podríamos usar esto para cache
+                        }));
+                    
+                    console.log('Archivos encontrados:', this.availableFiles);
+                    this.populateSelect();
+                    this.showAvailableFiles();
+                    
+                } catch (error) {
+                    console.error('Error cargando archivos:', error);
+                    
+                    // Fallback: usar archivos predefinidos
+                    this.availableFiles = [
+                        { name: 'javea-y-denia', displayName: 'Jávea y Dénia' },
+                        { name: 'institutos-prueba', displayName: 'Institutos Prueba' },
+                        { name: 'prueba-2', displayName: 'Prueba 2' }
+                    ];
+                    
+                    this.populateSelect();
+                    
+                    // Mostrar mensaje informativo
+                    this.showTemporaryMessage('Usando lista de archivos predefinida. Verifica tu conexión para cargar archivos actualizados.');
+                }
+            }
+
+            // Formatear nombres de archivo para mostrar
+            formatDisplayName(fileName) {
+                return fileName
+                    .split('-')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            }
+
+            // Poblar el select con los archivos disponibles
+            populateSelect() {
+                const select = document.getElementById('townSelect');
+                select.innerHTML = '<option value="">Selecciona un pueblo...</option>';
+                
+                this.availableFiles.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file.name;
+                    option.textContent = file.displayName;
+                    select.appendChild(option);
+                });
+            }
+
+            // Mostrar archivos disponibles en la interfaz
+            showAvailableFiles() {
+                const filesDiv = document.getElementById('availableFiles');
+                const fileList = document.getElementById('fileList');
+                
+                fileList.innerHTML = '';
+                this.availableFiles.forEach(file => {
+                    const tag = document.createElement('span');
+                    tag.className = 'file-tag';
+                    tag.textContent = file.displayName;
+                    fileList.appendChild(tag);
+                });
+                
+                filesDiv.style.display = 'block';
+            }
+
+            // Mostrar mensaje temporal
+            showTemporaryMessage(message) {
+                const alertDiv = document.getElementById('proximityAlert');
+                alertDiv.textContent = message;
+                alertDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    alertDiv.style.display = 'none';
+                }, 5000);
             }
 
             initMap() {
@@ -578,7 +713,6 @@
                 if (this.map) {
                     this.map.remove();
                 }
-                
                 
                 // Inicializar mapa centrado en la Comunidad Valenciana
                 this.map = L.map('map').setView([38.7, -0.5], 10);
@@ -606,7 +740,10 @@
                     }
                 });
                 
-                
+                // Botón de actualizar
+                document.getElementById('refreshBtn').addEventListener('click', () => {
+                    this.loadAvailableFiles();
+                });
 
                 // Controles de ubicación
                 document.getElementById('enableLocation').addEventListener('click', () => {
@@ -810,452 +947,291 @@
                 const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
                         Math.cos(φ1) * Math.cos(φ2) *
                         Math.sin(Δλ/2) * Math.sin(Δλ/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+               const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-                return R * c;
-            }
+               return R * c;
+           }
 
-            showProximityAlert(point) {
-                const alert = document.getElementById('proximityAlert');
-                alert.textContent = `🎯 ¡Estás cerca de ${point.name}!`;
-                alert.style.display = 'block';
-                
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 3000);
-            }
+           showProximityAlert(point) {
+               const alert = document.getElementById('proximityAlert');
+               alert.textContent = `🎯 ¡Estás cerca de ${point.title}!`;
+               alert.style.display = 'block';
+               
+               setTimeout(() => {
+                   alert.style.display = 'none';
+               }, 3000);
+           }
 
-            async loadTownData(townName) {
-                try {
-                    this.showLoading();
-                    
-                    // URL del repositorio público de GitHub donde están los JSON generados por Electron
-                    const baseUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
-                    const url = `${baseUrl}${townName}.json`;
-                    //REVISAR
-                    const response = await fetch(url);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
-                    const electronData = await response.json();
-                    
-                    // Convertir formato de Electron al formato esperado por la web
-                    const webData = this.convertElectronDataToWebFormat(electronData);
-                    
-                    this.currentData = webData;
-                    this.displayPointsOnMap(webData);
-                    this.hideOverlays();
-                    
-                } catch (error) {
-                    console.error('Error loading town data:', error);
-                    
-                    // Usar datos de ejemplo para testing
-                    console.log('Usando datos de ejemplo para:', townName);
-                    const data = this.getSimulatedData(townName);
-                    this.currentData = data;
-                    this.displayPointsOnMap(data);
-                    this.hideOverlays();
-                    
-                    // Mostrar mensaje informativo en lugar de error
-                    this.showError(`Usando datos de ejemplo para ${townName}. Para usar datos reales, sube el archivo ${townName}.json a tu repositorio de GitHub.`);
-                    setTimeout(() => this.hideOverlays(), 3000);
-                }
-            }
+           async loadTownData(townName) {
+               this.showLoading();
+               this.clearMap();
+               
+               try {
+                   const url = `${this.jsonRepoUrl}${townName}.json`;
+                   console.log('Cargando datos desde:', url);
+                   
+                   const response = await fetch(url);
+                   
+                   if (!response.ok) {
+                       throw new Error(`HTTP error! status: ${response.status}`);
+                   }
+                   
+                   const data = await response.json();
+                   
+                   if (!data.points || !Array.isArray(data.points)) {
+                       throw new Error('Formato de datos inválido: falta el array de points');
+                   }
+                   
+                   this.currentData = data;
+                   this.setupMap();
+                   this.updateScoreboard();
+                   this.hideOverlays();
+                   
+                   console.log(`Datos cargados correctamente: ${data.points.length} puntos`);
+                   
+               } catch (error) {
+                   console.error('Error cargando datos:', error);
+                   this.showError(`Error cargando ${townName}: ${error.message}`);
+               }
+           }
 
-            // Convertir el formato JSON de Electron al formato que espera la web
-            convertElectronDataToWebFormat(electronData) {
-                // Calcular el centro del mapa basado en los lugares
-                let centerLat = 0, centerLng = 0;
-                if (electronData.lugares && electronData.lugares.length > 0) {
-                    centerLat = electronData.lugares.reduce((sum, lugar) => sum + lugar.lat, 0) / electronData.lugares.length;
-                    centerLng = electronData.lugares.reduce((sum, lugar) => sum + lugar.lng, 0) / electronData.lugares.length;
-                }
+           setupMap() {
+               if (!this.currentData || !this.currentData.points) return;
+               
+               // Limpiar marcadores anteriores
+               this.markers.forEach(marker => this.map.removeLayer(marker));
+               this.markers = [];
+               
+               // Centrar el mapa en la zona de los puntos
+               if (this.currentData.points.length > 0) {
+                   const group = new L.featureGroup();
+                   
+                   this.currentData.points.forEach(point => {
+                       const marker = this.createMarker(point);
+                       this.markers.push(marker);
+                       marker.addTo(this.map);
+                       group.addLayer(marker);
+                   });
+                   
+                   // Ajustar vista para mostrar todos los puntos
+                   this.map.fitBounds(group.getBounds(), { padding: [20, 20] });
+               }
+           }
 
-                return {
-                    name: electronData.pueblo || 'Pueblo',
-                    center: [centerLat, centerLng],
-                    points: electronData.lugares ? electronData.lugares.map((lugar, index) => ({
-                        id: index + 1,
-                        name: lugar.nombre,
-                        description: lugar.descripcion,
-                        lat: lugar.lat,
-                        lng: lugar.lng,
-                        question: {
-                            text: lugar.pregunta.texto,
-                            answers: lugar.pregunta.respuestas.filter(r => r && r.trim() !== ''),
-                            correct: lugar.pregunta.correcta,
-                            points: 10
-                        }
-                    })) : []
-                };
-            }
+           createMarker(point) {
+               const isCompleted = this.completedQuestions.has(point.id);
+               
+               const markerIcon = L.divIcon({
+                   className: isCompleted ? 'completed-marker' : '',
+                   html: `<div style="
+                       background: ${isCompleted ? '#48bb78' : '#667eea'};
+                       width: 30px;
+                       height: 30px;
+                       border-radius: 50%;
+                       border: 3px solid white;
+                       display: flex;
+                       align-items: center;
+                       justify-content: center;
+                       color: white;
+                       font-weight: bold;
+                       font-size: 16px;
+                       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                   ">${isCompleted ? '✓' : '?'}</div>`,
+                   iconSize: [30, 30],
+                   iconAnchor: [15, 15]
+               });
 
-            getSimulatedData(townName) {
-                const townData = {
-                    javea: {
-                        name: "Jávea",
-                        center: [38.7908, 0.1316],
-                        points: [
-                            {
-                                id: 1,
-                                name: "Cabo de la Nao",
-                                description: "Impresionante cabo con vistas al Mediterráneo y faro histórico.",
-                                lat: 38.7456,
-                                lng: 0.2167,
-                                question: {
-                                    text: "¿En qué año se construyó el faro del Cabo de la Nao?",
-                                    answers: ["1862", "1845", "1878", "1823"],
-                                    correct: 0,
-                                    points: 10
-                                }
-                            },
-                            
+               const marker = L.marker([point.lat, point.lng], {
+                   icon: markerIcon
+               });
 
-                            {
-                                id: 2,
-                                name: "Casco Histórico",
-                                description: "Centro histórico con arquitectura tradicional valenciana.",
-                                lat: 38.7908,
-                                lng: 0.1316,
-                                question: {
-                                    text: "¿Cuál es el nombre original árabe de Jávea?",
-                                    answers: ["Xàbia", "Al-Yazirat", "Saetabis", "Xara"],
-                                    correct: 0,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 3,
-                                name: "Playa del Arenal",
-                                description: "Principal playa urbana de Jávea con arena fina.",
-                                lat: 38.7711,
-                                lng: 0.1614,
-                                question: {
-                                    text: "¿Qué longitud aproximada tiene la Playa del Arenal?",
-                                    answers: ["500 metros", "800 metros", "1200 metros", "300 metros"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            }
-                        ]
-                    },
-                    denia: {
-                        name: "Dénia",
-                        center: [38.8408, 0.1059],
-                        points: [
-                            {
-                                id: 1,
-                                name: "Castillo de Dénia",
-                                description: "Fortaleza árabe del siglo XI con vistas panorámicas de la ciudad.",
-                                lat: 38.8422,
-                                lng: 0.1053,
-                                question: {
-                                    text: "¿En qué siglo se construyó inicialmente el Castillo de Dénia?",
-                                    answers: ["Siglo X", "Siglo XI", "Siglo XII", "Siglo IX"],
-                                    correct: 1,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 2,
-                                name: "Puerto de Dénia",
-                                description: "Puerto pesquero y deportivo, punto de partida hacia Baleares.",
-                                lat: 38.8356,
-                                lng: 0.1092,
-                                question: {
-                                    text: "¿Hacia qué islas hay conexión regular en ferry desde Dénia?",
-                                    answers: ["Islas Canarias", "Islas Baleares", "Córcega", "Cerdeña"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 3,
-                                name: "Playa de Las Marinas",
-                                description: "Extensa playa de arena fina al norte de Dénia.",
-                                lat: 38.8678,
-                                lng: 0.0917,
-                                question: {
-                                    text: "¿Cuál es la característica principal de Las Marinas?",
-                                    answers: ["Aguas termales", "Arena volcánica", "Arena fina dorada", "Rocas de coral"],
-                                    correct: 2,
-                                    points: 10
-                                }
-                            }
-                        ]
-                    },
-                    "javea-y-denia": {
-                        name: "Jávea y Dénia",
-                        center: [38.8158, 0.1188],
-                        points: [
-                            {
-                                id: 1,
-                                name: "Cabo de la Nao (Jávea)",
-                                description: "Impresionante cabo con vistas al Mediterráneo y faro histórico.",
-                                lat: 38.7456,
-                                lng: 0.2167,
-                                question: {
-                                    text: "¿En qué año se construyó el faro del Cabo de la Nao?",
-                                    answers: ["1862", "1845", "1878", "1823"],
-                                    correct: 0,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 2,
-                                name: "Castillo de Dénia",
-                                description: "Fortaleza árabe del siglo XI con vistas panorámicas de la ciudad.",
-                                lat: 38.8422,
-                                lng: 0.1053,
-                                question: {
-                                    text: "¿En qué siglo se construyó inicialmente el Castillo de Dénia?",
-                                    answers: ["Siglo X", "Siglo XI", "Siglo XII", "Siglo IX"],
-                                    correct: 1,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 3,
-                                name: "Casco Histórico Jávea",
-                                description: "Centro histórico con arquitectura tradicional valenciana.",
-                                lat: 38.7908,
-                                lng: 0.1316,
-                                question: {
-                                    text: "¿Cuál es el nombre original árabe de Jávea?",
-                                    answers: ["Xàbia", "Al-Yazirat", "Saetabis", "Xara"],
-                                    correct: 0,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 4,
-                                name: "Puerto de Dénia",
-                                description: "Puerto pesquero y deportivo, punto de partida hacia Baleares.",
-                                lat: 38.8356,
-                                lng: 0.1092,
-                                question: {
-                                    text: "¿Hacia qué islas hay conexión regular en ferry desde Dénia?",
-                                    answers: ["Islas Canarias", "Islas Baleares", "Córcega", "Cerdeña"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 5,
-                                name: "Playa del Arenal (Jávea)",
-                                description: "Principal playa urbana de Jávea con arena fina.",
-                                lat: 38.7711,
-                                lng: 0.1614,
-                                question: {
-                                    text: "¿Qué longitud aproximada tiene la Playa del Arenal?",
-                                    answers: ["500 metros", "800 metros", "1200 metros", "300 metros"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 6,
-                                name: "Playa de Las Marinas (Dénia)",
-                                description: "Extensa playa de arena fina al norte de Dénia.",
-                                lat: 38.8678,
-                                lng: 0.0917,
-                                question: {
-                                    text: "¿Cuál es la característica principal de Las Marinas?",
-                                    answers: ["Aguas termales", "Arena volcánica", "Arena fina dorada", "Rocas de coral"],
-                                    correct: 2,
-                                    points: 10
-                                }
-                            }
-                        ]
-                    }
-                };
+               marker.bindPopup(`
+                   <div style="text-align: center; padding: 10px;">
+                       <h4 style="margin: 0 0 10px 0; color: #4a5568;">${point.title}</h4>
+                       <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">${point.description || 'Punto de interés'}</p>
+                       ${isCompleted ? 
+                           '<div style="color: #48bb78; font-weight: bold;">✅ Completado</div>' :
+                           '<button onclick="gameInstance.showQuestion(' + JSON.stringify(point) + ')" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">🤔 Responder pregunta</button>'
+                       }
+                   </div>
+               `);
 
-                return townData[townName] || townData.javea;
-            }
+               return marker;
+           }
 
-            displayPointsOnMap(data) {
-                // Limpiar marcadores existentes
-                this.clearMarkers();
-                
-                // Centrar mapa en la zona
-                this.map.setView(data.center, 12);
-                
-                // Añadir marcadores para cada punto
-                data.points.forEach(point => {
-                    const isCompleted = this.completedQuestions.has(point.id);
-                    
-                    const markerIcon = L.divIcon({
-                        className: isCompleted ? 'completed-marker' : '',
-                        html: isCompleted ? '✅' : '📍',
-                        iconSize: [25, 25],
-                        iconAnchor: [12, 25]
-                    });
-                    
-                    const marker = L.marker([point.lat, point.lng], {
-                        icon: markerIcon
-                    }).addTo(this.map);
-                    
-                    // Popup con información
-                    const popupContent = `
-                        <div style="text-align: center; padding: 5px;">
-                            <strong>${point.name}</strong><br>
-                            <small>${point.description}</small><br>
-                            ${isCompleted ? 
-                                '<span style="color: green; font-weight: bold;">✅ Completado</span>' : 
-                                '<button onclick="gameInstance.showQuestion(' + point.id + ')" style="margin-top: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">🎯 Responder</button>'
-                            }
-                        </div>
-                    `;
-                    
-                    marker.bindPopup(popupContent);
-                    this.markers.push(marker);
-                });
-                
-                this.updateStats();
-            }
+           showQuestion(point) {
+               if (this.completedQuestions.has(point.id)) {
+                   return;
+               }
 
-            clearMarkers() {
-                this.markers.forEach(marker => {
-                    this.map.removeLayer(marker);
-                });
-                this.markers = [];
-            }
+               this.currentQuestion = point;
+               const modal = document.getElementById('questionModal');
+               const content = document.getElementById('questionContent');
 
-            clearMap() {
-                this.clearMarkers();
-                if (this.userMarker) {
-                    this.map.removeLayer(this.userMarker);
-                    this.userMarker = null;
-                }
-                if (this.proximityCircle) {
-                    this.map.removeLayer(this.proximityCircle);
-                    this.proximityCircle = null;
-                }
-                this.currentData = null;
-                this.updateStats();
-            }
+               content.innerHTML = `
+                   <h3>📍 ${point.title}</h3>
+                   <p>${point.description || 'Responde la siguiente pregunta sobre este lugar:'}</p>
+                   
+                   <div class="question-section">
+                       <h4>🤔 ${point.question}</h4>
+                       <div class="answers" id="answerButtons">
+                           ${point.answers.map((answer, index) => 
+                               `<button class="answer-btn" data-index="${index}">${answer}</button>`
+                           ).join('')}
+                       </div>
+                       <div id="resultMessage"></div>
+                   </div>
+               `;
 
-            showQuestion(pointId) {
-                if (!this.currentData) return;
-                
-                const point = this.currentData.points.find(p => p.id === pointId);
-                if (!point || this.completedQuestions.has(pointId)) return;
-                
-                this.currentQuestion = point;
-                
-                const questionContent = document.getElementById('questionContent');
-                questionContent.innerHTML = `
-                    <h3>📍 ${point.name}</h3>
-                    <p>${point.description}</p>
-                    
-                    <div class="question-section">
-                        <h4>❓ ${point.question.text}</h4>
-                        <div class="answers" id="answers">
-                            ${point.question.answers.map((answer, index) => 
-                                `<button class="answer-btn" onclick="gameInstance.submitAnswer(${index})">${answer}</button>`
-                            ).join('')}
-                        </div>
-                        <div id="result" class="result-message" style="display: none;"></div>
-                    </div>
-                `;
-                
-                document.getElementById('questionModal').style.display = 'block';
-            }
+               // Agregar eventos a los botones de respuesta
+               const answerButtons = content.querySelectorAll('.answer-btn');
+               answerButtons.forEach(btn => {
+                   btn.addEventListener('click', (e) => {
+                       this.handleAnswer(parseInt(e.target.dataset.index), point);
+                   });
+               });
 
-            submitAnswer(answerIndex) {
-                if (!this.currentQuestion) return;
-                
-                const correct = answerIndex === this.currentQuestion.question.correct;
-                const buttons = document.querySelectorAll('.answer-btn');
-                const resultDiv = document.getElementById('result');
-                
-                // Deshabilitar todos los botones
-                buttons.forEach((btn, idx) => {
-                    btn.classList.add('disabled');
-                    if (idx === this.currentQuestion.question.correct) {
-                        btn.classList.add('correct');
-                    } else if (idx === answerIndex && !correct) {
-                        btn.classList.add('incorrect');
-                    }
-                });
-                
-                // Mostrar resultado
-                if (correct) {
-                    this.totalPoints += this.currentQuestion.question.points;
-                    this.completedQuestions.add(this.currentQuestion.id);
-                    resultDiv.innerHTML = `🎉 ¡Correcto! Has ganado ${this.currentQuestion.question.points} puntos`;
-                    resultDiv.className = 'result-message correct';
-                } else {
-                    resultDiv.innerHTML = `❌ Incorrecto. La respuesta correcta era: ${this.currentQuestion.question.answers[this.currentQuestion.question.correct]}`;
-                    resultDiv.className = 'result-message incorrect';
-                }
-                
-                resultDiv.style.display = 'block';
-                
-                // Actualizar interfaz
-                this.updateStats();
-                this.saveGameState();
-                
-                // Actualizar marcadores en el mapa
-                if (correct && this.currentData) {
-                    this.displayPointsOnMap(this.currentData);
-                }
-                
-                // Cerrar modal automáticamente después de 3 segundos
-                setTimeout(() => {
-                    document.getElementById('questionModal').style.display = 'none';
-                }, 3000);
-            }
+               modal.style.display = 'block';
+           }
 
-            updateStats() {
-                document.getElementById('totalPoints').textContent = this.totalPoints;
-                document.getElementById('completedCount').textContent = this.completedQuestions.size;
-                document.getElementById('totalLocations').textContent = this.currentData ? this.currentData.points.length : 0;
-            }
+           handleAnswer(selectedIndex, point) {
+               const answerButtons = document.querySelectorAll('.answer-btn');
+               const resultDiv = document.getElementById('resultMessage');
+               
+               // Deshabilitar todos los botones
+               answerButtons.forEach(btn => {
+                   btn.classList.add('disabled');
+                   btn.disabled = true;
+               });
 
-            saveGameState() {
-                // Guardar en memoria (no localStorage por las restricciones de Claude)
-                this.gameState = {
-                    totalPoints: this.totalPoints,
-                    completedQuestions: Array.from(this.completedQuestions),
-                    lastPlayed: Date.now()
-                };
-            }
+               const isCorrect = selectedIndex === point.correctAnswer;
+               
+               // Marcar respuesta seleccionada
+               answerButtons[selectedIndex].classList.add(isCorrect ? 'correct' : 'incorrect');
+               
+               // Mostrar respuesta correcta si es incorrecta
+               if (!isCorrect) {
+                   answerButtons[point.correctAnswer].classList.add('correct');
+               }
 
-            loadGameState() {
-                // Cargar desde memoria si existe
-                if (this.gameState) {
-                    this.totalPoints = this.gameState.totalPoints || 0;
-                    this.completedQuestions = new Set(this.gameState.completedQuestions || []);
-                    this.updateStats();
-                }
-            }
+               // Mostrar mensaje de resultado
+               if (isCorrect) {
+                   resultDiv.innerHTML = `
+                       <div class="result-message correct">
+                           🎉 ¡Correcto! Has ganado ${point.points} puntos.
+                       </div>
+                   `;
+                   this.addPoints(point.points);
+                   this.markAsCompleted(point.id);
+               } else {
+                   resultDiv.innerHTML = `
+                       <div class="result-message incorrect">
+                           ❌ Incorrecto. La respuesta correcta era: "${point.answers[point.correctAnswer]}"
+                       </div>
+                   `;
+               }
 
-            showLoading() {
-                document.getElementById('loadingOverlay').style.display = 'flex';
-                document.getElementById('errorOverlay').style.display = 'none';
-            }
+               // Cerrar modal automáticamente después de 3 segundos
+               setTimeout(() => {
+                   document.getElementById('questionModal').style.display = 'none';
+                   this.updateMarkers();
+                   this.saveGameState();
+               }, 3000);
+           }
 
-            showError(message) {
-                document.getElementById('errorMessage').textContent = message;
-                document.getElementById('errorOverlay').style.display = 'flex';
-                document.getElementById('loadingOverlay').style.display = 'none';
-            }
+           addPoints(points) {
+               this.totalPoints += points;
+               this.updateScoreboard();
+           }
 
-            hideOverlays() {
-                document.getElementById('loadingOverlay').style.display = 'none';
-                document.getElementById('errorOverlay').style.display = 'none';
-            }
-        }
+           markAsCompleted(pointId) {
+               this.completedQuestions.add(pointId);
+               this.updateScoreboard();
+           }
 
-        // Inicializar el juego cuando se carga la página
-        let gameInstance;
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            gameInstance = new InteractiveMapGame();
-        });
-    </script>
+           updateMarkers() {
+               this.markers.forEach(marker => this.map.removeLayer(marker));
+               this.markers = [];
+               
+               if (this.currentData && this.currentData.points) {
+                   this.currentData.points.forEach(point => {
+                       const marker = this.createMarker(point);
+                       this.markers.push(marker);
+                       marker.addTo(this.map);
+                   });
+               }
+           }
+
+           updateScoreboard() {
+               document.getElementById('totalPoints').textContent = this.totalPoints;
+               document.getElementById('completedCount').textContent = this.completedQuestions.size;
+               document.getElementById('totalLocations').textContent = 
+                   this.currentData ? this.currentData.points.length : 0;
+           }
+
+           clearMap() {
+               this.markers.forEach(marker => this.map.removeLayer(marker));
+               this.markers = [];
+               this.currentData = null;
+               this.completedQuestions.clear();
+               this.totalPoints = 0;
+               this.updateScoreboard();
+           }
+
+           showLoading() {
+               document.getElementById('loadingOverlay').style.display = 'flex';
+           }
+
+           showError(message) {
+               document.getElementById('errorMessage').textContent = message;
+               document.getElementById('errorOverlay').style.display = 'flex';
+           }
+
+           hideOverlays() {
+               document.getElementById('loadingOverlay').style.display = 'none';
+               document.getElementById('errorOverlay').style.display = 'none';
+           }
+
+           saveGameState() {
+               const gameState = {
+                   totalPoints: this.totalPoints,
+                   completedQuestions: Array.from(this.completedQuestions),
+                   currentTown: document.getElementById('townSelect').value
+               };
+               
+               try {
+                   localStorage.setItem('mapGameState', JSON.stringify(gameState));
+               } catch (error) {
+                   console.warn('No se pudo guardar el estado del juego:', error);
+               }
+           }
+
+           loadGameState() {
+               try {
+                   const savedState = localStorage.getItem('mapGameState');
+                   if (savedState) {
+                       const gameState = JSON.parse(savedState);
+                       this.totalPoints = gameState.totalPoints || 0;
+                       this.completedQuestions = new Set(gameState.completedQuestions || []);
+                       
+                       if (gameState.currentTown) {
+                           document.getElementById('townSelect').value = gameState.currentTown;
+                       }
+                       
+                       this.updateScoreboard();
+                   }
+               } catch (error) {
+                   console.warn('No se pudo cargar el estado del juego:', error);
+               }
+           }
+       }
+
+       // Inicializar el juego cuando se carga la página
+       let gameInstance;
+       
+       document.addEventListener('DOMContentLoaded', () => {
+           gameInstance = new InteractiveMapGame();
+       });
+   </script>
 </body>
 </html>
