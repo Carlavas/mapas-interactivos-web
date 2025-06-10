@@ -911,6 +911,101 @@
                                     points: 10
                                 }
                             },
+                             // Base URL para los JSON en GitHub
+                this.JSON_BASE_URL = 'https://github.com/Carlavas/mapas-interactivos-json.git';
+                
+                this.init();
+            }
+
+            // ... (otros métodos se mantienen igual)
+
+            async loadTownData(townName) {
+                try {
+                    this.showLoading();
+                    
+                    // 1. Intentar cargar datos del pueblo desde GitHub
+                    const url = `${this.JSON_BASE_URL}${townName}.json`;
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        // 2. Si falla, usar datos locales como respaldo
+                        console.warn(`No se encontró ${townName}.json en GitHub. Usando datos locales.`);
+                        return this.loadLocalData(townName);
+                    }
+                    
+                    // 3. Procesar datos exitosamente cargados
+                    const electronData = await response.json();
+                    const webData = this.convertElectronDataToWebFormat(electronData);
+                    
+                    this.currentData = webData;
+                    this.displayPointsOnMap(webData);
+                    this.hideOverlays();
+                    
+                } catch (error) {
+                    console.error('Error loading town data:', error);
+                    
+                    // 4. Si todo falla, usar datos simulados
+                    this.useSimulatedData(townName);
+                    this.showError(`Error cargando datos. Usando datos de ejemplo para ${townName}`);
+                    setTimeout(() => this.hideOverlays(), 3000);
+                }
+            }
+
+            async loadLocalData(townName) {
+                try {
+                    // Intenta cargar datos locales si existen
+                    const localResponse = await fetch(`/data/${townName}.json`);
+                    
+                    if (!localResponse.ok) throw new Error('Local file not found');
+                    
+                    const localData = await localResponse.json();
+                    const webData = this.convertElectronDataToWebFormat(localData);
+                    
+                    this.currentData = webData;
+                    this.displayPointsOnMap(webData);
+                    this.hideOverlays();
+                    
+                } catch (localError) {
+                    console.error('Error loading local data:', localError);
+                    throw localError; // Pasa el error al catch principal
+                }
+            }
+
+            useSimulatedData(townName) {
+                const data = this.getSimulatedData(townName);
+                this.currentData = data;
+                this.displayPointsOnMap(data);
+            }
+            // Función para forzar actualización desde GitHub
+            async forceRefreshTownData() {
+                if (!this.currentData) return;
+                
+                const townName = this.currentData.name.toLowerCase().replace(/\s+/g, '-');
+                this.loadTownData(townName);
+                this.showNotification('Datos actualizados desde GitHub');
+            }
+
+            showNotification(message) {
+                // Implementa notificaciones en tu UI
+                console.log(message);
+                alert(message); // Ejemplo simple
+            }
+        }
+
+        // Inicializar el juego cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            const game = new InteractiveMapGame();
+            
+            // Opcional: Agregar botón de actualización manual
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = '🔄 Actualizar Datos';
+            refreshBtn.className = 'btn btn-refresh';
+            refreshBtn.addEventListener('click', () => game.forceRefreshTownData());
+            document.querySelector('.location-controls').appendChild(refreshBtn);
+        });
+
+            // 
+
                             {
                                 id: 2,
                                 name: "Casco Histórico",
