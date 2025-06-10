@@ -482,6 +482,8 @@
                     <option value="">Selecciona un pueblo...</option>
                     <option value="javea-y-denia">Jávea y Dénia</option>
                <option value="institutos-prueba">Prueba</option>
+                        <option value="prueba-2">Prueba2</option>
+                    
                 </select>
             </div>
 
@@ -539,6 +541,7 @@
             </div>
         </div>
     </div>
+    
 
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -576,6 +579,7 @@
                     this.map.remove();
                 }
                 
+                
                 // Inicializar mapa centrado en la Comunidad Valenciana
                 this.map = L.map('map').setView([38.7, -0.5], 10);
                 
@@ -601,6 +605,8 @@
                         this.hideOverlays();
                     }
                 });
+                
+                
 
                 // Controles de ubicación
                 document.getElementById('enableLocation').addEventListener('click', () => {
