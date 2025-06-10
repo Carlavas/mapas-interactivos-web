@@ -1,13 +1,13 @@
-<!DOCTYPE html>More actions
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Mapas Interactivos - Geolocalización</title>
-
+    
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-
+    
     <style>
         * {
             margin: 0;
@@ -427,30 +427,30 @@
             .container {
                 padding: 10px;
             }
-
+            
             .header {
                 padding: 15px;
             }
-
+            
             .header h1 {
                 font-size: 1.5rem;
             }
-
+            
             #map {
                 height: 350px;
             }
-
+            
             .modal-content {
                 margin: 10% auto;
                 padding: 20px;
                 width: 98%;
             }
-
+            
             .score-board {
                 flex-direction: column;
                 align-items: stretch;
             }
-
+            
             .score-item {
                 justify-content: center;
             }
@@ -465,7 +465,7 @@
             #map {
                 height: 300px;
             }
-
+            
             .answer-btn {
                 padding: 12px;
                 font-size: 14px;
@@ -483,7 +483,7 @@
                     <option value="javea-y-denia">Jávea y Dénia</option>
                <option value="institutos-prueba">Prueba</option>
                         <option value="prueba-2">Prueba2</option>
-
+                    
                 </select>
             </div>
 
@@ -495,7 +495,7 @@
                 <button class="btn btn-primary" id="enableLocation">📍 Activar GPS</button>
                 <button class="btn btn-secondary" id="disableLocation">⏸️ Pausar GPS</button>
             </div>
-
+            
             <div class="score-board">
                 <div class="score-item">
                     <div class="icon points">🏆</div>
@@ -541,11 +541,11 @@
             </div>
         </div>
     </div>
-
+    
 
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-
+    
     <script>
         class InteractiveMapGame {
             constructor() {
@@ -562,7 +562,7 @@
                 this.locationEnabled = false;
                 this.proximityThreshold = 50; // metros
                 this.lastProximityCheck = {};
-
+                
                 this.init();
             }
 
@@ -578,11 +578,11 @@
                 if (this.map) {
                     this.map.remove();
                 }
-
-
+                
+                
                 // Inicializar mapa centrado en la Comunidad Valenciana
                 this.map = L.map('map').setView([38.7, -0.5], 10);
-
+                
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(this.map);
@@ -605,8 +605,8 @@
                         this.hideOverlays();
                     }
                 });
-
-
+                
+                
 
                 // Controles de ubicación
                 document.getElementById('enableLocation').addEventListener('click', () => {
@@ -620,11 +620,11 @@
                 // Modal events
                 const modal = document.getElementById('questionModal');
                 const closeBtn = document.querySelector('.close');
-
+                
                 closeBtn.addEventListener('click', () => {
                     modal.style.display = 'none';
                 });
-
+                
                 window.addEventListener('click', (e) => {
                     if (e.target === modal) {
                         modal.style.display = 'none';
@@ -819,7 +819,7 @@
                 const alert = document.getElementById('proximityAlert');
                 alert.textContent = `🎯 ¡Estás cerca de ${point.name}!`;
                 alert.style.display = 'block';
-
+                
                 setTimeout(() => {
                     alert.style.display = 'none';
                 }, 3000);
@@ -828,36 +828,36 @@
             async loadTownData(townName) {
                 try {
                     this.showLoading();
-
+                    
                     // URL del repositorio público de GitHub donde están los JSON generados por Electron
                     const baseUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
                     const url = `${baseUrl}${townName}.json`;
                     //REVISAR
                     const response = await fetch(url);
-
+                    
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-
+                    
                     const electronData = await response.json();
-
+                    
                     // Convertir formato de Electron al formato esperado por la web
                     const webData = this.convertElectronDataToWebFormat(electronData);
-
+                    
                     this.currentData = webData;
                     this.displayPointsOnMap(webData);
                     this.hideOverlays();
-
+                    
                 } catch (error) {
                     console.error('Error loading town data:', error);
-
+                    
                     // Usar datos de ejemplo para testing
                     console.log('Usando datos de ejemplo para:', townName);
                     const data = this.getSimulatedData(townName);
                     this.currentData = data;
                     this.displayPointsOnMap(data);
                     this.hideOverlays();
-
+                    
                     // Mostrar mensaje informativo en lugar de error
                     this.showError(`Usando datos de ejemplo para ${townName}. Para usar datos reales, sube el archivo ${townName}.json a tu repositorio de GitHub.`);
                     setTimeout(() => this.hideOverlays(), 3000);
@@ -911,7 +911,9 @@
                                     points: 10
                                 }
                             },
-                            {Add commentMore actions
+                            
+
+                            {
                                 id: 2,
                                 name: "Casco Histórico",
                                 description: "Centro histórico con arquitectura tradicional valenciana.",
@@ -1076,25 +1078,25 @@
             displayPointsOnMap(data) {
                 // Limpiar marcadores existentes
                 this.clearMarkers();
-
+                
                 // Centrar mapa en la zona
                 this.map.setView(data.center, 12);
-
+                
                 // Añadir marcadores para cada punto
                 data.points.forEach(point => {
                     const isCompleted = this.completedQuestions.has(point.id);
-
+                    
                     const markerIcon = L.divIcon({
                         className: isCompleted ? 'completed-marker' : '',
                         html: isCompleted ? '✅' : '📍',
                         iconSize: [25, 25],
                         iconAnchor: [12, 25]
                     });
-
+                    
                     const marker = L.marker([point.lat, point.lng], {
                         icon: markerIcon
                     }).addTo(this.map);
-
+                    
                     // Popup con información
                     const popupContent = `
                         <div style="text-align: center; padding: 5px;">
@@ -1106,11 +1108,11 @@
                             }
                         </div>
                     `;
-
+                    
                     marker.bindPopup(popupContent);
                     this.markers.push(marker);
                 });
-
+                
                 this.updateStats();
             }
 
@@ -1137,12 +1139,12 @@
 
             showQuestion(pointId) {
                 if (!this.currentData) return;
-
+                
                 const point = this.currentData.points.find(p => p.id === pointId);
                 if (!point || this.completedQuestions.has(pointId)) return;
-
+                
                 this.currentQuestion = point;
-
+                
                 const questionContent = document.getElementById('questionContent');
                 questionContent.innerHTML = `
                     <h3>📍 ${point.name}</h3>
@@ -1158,17 +1160,17 @@
                         <div id="result" class="result-message" style="display: none;"></div>
                     </div>
                 `;
-
+                
                 document.getElementById('questionModal').style.display = 'block';
             }
 
             submitAnswer(answerIndex) {
                 if (!this.currentQuestion) return;
-
+                
                 const correct = answerIndex === this.currentQuestion.question.correct;
                 const buttons = document.querySelectorAll('.answer-btn');
                 const resultDiv = document.getElementById('result');
-
+                
                 // Deshabilitar todos los botones
                 buttons.forEach((btn, idx) => {
                     btn.classList.add('disabled');
@@ -1178,7 +1180,7 @@
                         btn.classList.add('incorrect');
                     }
                 });
-
+                
                 // Mostrar resultado
                 if (correct) {
                     this.totalPoints += this.currentQuestion.question.points;
@@ -1189,18 +1191,18 @@
                     resultDiv.innerHTML = `❌ Incorrecto. La respuesta correcta era: ${this.currentQuestion.question.answers[this.currentQuestion.question.correct]}`;
                     resultDiv.className = 'result-message incorrect';
                 }
-
+                
                 resultDiv.style.display = 'block';
-
+                
                 // Actualizar interfaz
                 this.updateStats();
                 this.saveGameState();
-
+                
                 // Actualizar marcadores en el mapa
                 if (correct && this.currentData) {
                     this.displayPointsOnMap(this.currentData);
                 }
-
+                
                 // Cerrar modal automáticamente después de 3 segundos
                 setTimeout(() => {
                     document.getElementById('questionModal').style.display = 'none';
@@ -1250,7 +1252,7 @@
 
         // Inicializar el juego cuando se carga la página
         let gameInstance;
-
+        
         document.addEventListener('DOMContentLoaded', function() {
             gameInstance = new InteractiveMapGame();
         });
