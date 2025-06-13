@@ -561,7 +561,7 @@
                 this.proximityCircle = null;
                 this.watchId = null;
                 this.locationEnabled = false;
-                this.proximityThreshold = 50; // metros
+                this.proximityThreshold = 10; // metros
                 this.lastProximityCheck = {};
                 
                 this.init();
@@ -731,41 +731,46 @@
                 status.className = `location-status ${type}`;
             }
 
-            updateUserMarker() {
-                if (!this.userPosition || !this.map) return;
+           updateUserMarker() {
+    if (!this.userPosition || !this.map) return;
 
-                // Remover marcador anterior
-                if (this.userMarker) {
-                    this.map.removeLayer(this.userMarker);
-                }
-                if (this.proximityCircle) {
-                    this.map.removeLayer(this.proximityCircle);
-                }
+    // Remover marcador anterior
+    if (this.userMarker) {
+        this.map.removeLayer(this.userMarker);
+    }
+    if (this.proximityCircle) {
+        this.map.removeLayer(this.proximityCircle);
+    }
 
-                // Crear nuevo marcador de usuario
-                const userIcon = L.divIcon({
-                    className: 'user-marker',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                });
+    // Crear nuevo marcador de usuario
+    const userIcon = L.divIcon({
+        className: 'user-marker',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
 
-                this.userMarker = L.marker([this.userPosition.lat, this.userPosition.lng], {
-                    icon: userIcon
-                }).addTo(this.map);
+    this.userMarker = L.marker([this.userPosition.lat, this.userPosition.lng], {
+        icon: userIcon
+    }).addTo(this.map);
 
-                // Crear círculo de proximidad
-                this.proximityCircle = L.circle([this.userPosition.lat, this.userPosition.lng], {
-                    radius: this.proximityThreshold,
-                    className: 'proximity-circle',
-                    fillOpacity: 0.2,
-                    weight: 2
-                }).addTo(this.map);
+    // Crear círculo de proximidad
+    this.proximityCircle = L.circle([this.userPosition.lat, this.userPosition.lng], {
+        radius: this.proximityThreshold,
+        className: 'proximity-circle',
+        fillOpacity: 0.2,
+        weight: 2
+    }).addTo(this.map);
 
-                // Centrar mapa en la primera ubicación
-                if (!this.currentData) {
-                    this.map.setView([this.userPosition.lat, this.userPosition.lng], 15);
-                }
-            }
+    // Actualizar popups de los marcadores con nueva distancia
+    if (this.currentData) {
+        this.displayPointsOnMap(this.currentData);
+    }
+
+    // Centrar mapa en la primera ubicación
+    if (!this.currentData) {
+        this.map.setView([this.userPosition.lat, this.userPosition.lng], 15);
+    }
+}
 
             checkProximity() {
                 if (!this.userPosition || !this.currentData) return;
@@ -1097,6 +1102,23 @@
                     const marker = L.marker([point.lat, point.lng], {
                         icon: markerIcon
                     }).addTo(this.map);
+                     let actionContent = '';
+        if (isCompleted) {
+            actionContent = '<span style="color: green; font-weight: bold;">✅ Completado</span>';
+        } else {
+            // Verificar si está cerca
+            const isNear = this.isUserNearPoint(point);
+            if (isNear) {
+                actionContent = '<button onclick="gameInstance.showQuestion(' + point.id + ')" style="margin-top: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">🎯 Responder</button>';
+            } else {
+                const distance = this.userPosition ? Math.round(this.calculateDistance(
+                    this.userPosition.lat, this.userPosition.lng,
+                    point.lat, point.lng
+                )) : '---';
+                actionContent = `<span style="color: #999; font-size: 12px;">📍 Acércate más (${distance}m)</span>`;
+            }
+        }
+        
                     
                     // Popup con información
                     const popupContent = `
@@ -1138,32 +1160,38 @@
                 this.updateStats();
             }
 
-            showQuestion(pointId) {
-                if (!this.currentData) return;
-                
-                const point = this.currentData.points.find(p => p.id === pointId);
-                if (!point || this.completedQuestions.has(pointId)) return;
-                
-                this.currentQuestion = point;
-                
-                const questionContent = document.getElementById('questionContent');
-                questionContent.innerHTML = `
-                    <h3>📍 ${point.name}</h3>
-                    <p>${point.description}</p>
-                    
-                    <div class="question-section">
-                        <h4>❓ ${point.question.text}</h4>
-                        <div class="answers" id="answers">
-                            ${point.question.answers.map((answer, index) => 
-                                `<button class="answer-btn" onclick="gameInstance.submitAnswer(${index})">${answer}</button>`
-                            ).join('')}
-                        </div>
-                        <div id="result" class="result-message" style="display: none;"></div>
-                    </div>
-                `;
-                
-                document.getElementById('questionModal').style.display = 'block';
-            }
+       showQuestion(pointId) {
+    if (!this.currentData) return;
+    
+    const point = this.currentData.points.find(p => p.id === pointId);
+    if (!point || this.completedQuestions.has(pointId)) return;
+    
+    // Verificar que el usuario esté cerca antes de mostrar la pregunta
+    if (!this.isUserNearPoint(point)) {
+        alert('❌ Debes estar a menos de 10 metros del punto para acceder a la pregunta');
+        return;
+    }
+    
+    this.currentQuestion = point;
+    
+    const questionContent = document.getElementById('questionContent');
+    questionContent.innerHTML = `
+        <h3>📍 ${point.name}</h3>
+        <p>${point.description}</p>
+        
+        <div class="question-section">
+            <h4>❓ ${point.question.text}</h4>
+            <div class="answers" id="answers">
+                ${point.question.answers.map((answer, index) => 
+                    `<button class="answer-btn" onclick="gameInstance.submitAnswer(${index})">${answer}</button>`
+                ).join('')}
+            </div>
+            <div id="result" class="result-message" style="display: none;"></div>
+        </div>
+    `;
+    
+    document.getElementById('questionModal').style.display = 'block';
+}
 
             submitAnswer(answerIndex) {
                 if (!this.currentQuestion) return;
@@ -1250,6 +1278,17 @@
                 document.getElementById('errorOverlay').style.display = 'none';
             }
         }
+        isUserNearPoint(point) {
+    if (!this.userPosition) return false;
+    
+    const distance = this.calculateDistance(
+        this.userPosition.lat, this.userPosition.lng,
+        point.lat, point.lng
+    );
+    
+    return distance <= this.proximityThreshold;
+}
+
 
         // Inicializar el juego cuando se carga la página
         let gameInstance;
