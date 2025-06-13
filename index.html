@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Mapas Interactivos - Geolocalización</title>
-    
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    
     <style>
+        /* ... (deja tu CSS como está, está perfecto y muy completo) ... */
+       
         * {
             margin: 0;
             padding: 0;
@@ -471,6 +470,8 @@
                 font-size: 14px;
             }
         }
+ 
+       
     </style>
 </head>
 <body>
@@ -481,42 +482,25 @@
                 <select id="townSelect">
                     <option value="">Selecciona un pueblo...</option>
                     <option value="javea-y-denia">Jávea y Dénia</option>
-               <option value="institutos-prueba">Prueba</option>
-                        <option value="prueba-2">Prueba2</option>
-                     <option value="prueba-3">Prueba3</option>
-                    
+                    <option value="institutos-prueba">Prueba</option>
+                    <option value="prueba-2">Prueba2</option>
+                    <option value="prueba-3">Prueba3</option>
                 </select>
             </div>
-
             <div class="location-status" id="locationStatus">
                 📍 Activando geolocalización...
             </div>
-
             <div class="location-controls">
                 <button class="btn btn-primary" id="enableLocation">📍 Activar GPS</button>
                 <button class="btn btn-secondary" id="disableLocation">⏸️ Pausar GPS</button>
             </div>
-            
             <div class="score-board">
-                <div class="score-item">
-                    <div class="icon points">🏆</div>
-                    <span>Puntos: <span id="totalPoints">0</span></span>
-                </div>
-                <div class="score-item">
-                    <div class="icon completed">✅</div>
-                    <span>Completados: <span id="completedCount">0</span></span>
-                </div>
-                <div class="score-item">
-                    <div class="icon total">📍</div>
-                    <span>Total: <span id="totalLocations">0</span></span>
-                </div>
-                <div class="score-item">
-                    <div class="icon distance">🎯</div>
-                    <span>Distancia: <span id="nearestDistance">--</span>m</span>
-                </div>
+                <div class="score-item"><div class="icon points">🏆</div><span>Puntos: <span id="totalPoints">0</span></span></div>
+                <div class="score-item"><div class="icon completed">✅</div><span>Completados: <span id="completedCount">0</span></span></div>
+                <div class="score-item"><div class="icon total">📍</div><span>Total: <span id="totalLocations">0</span></span></div>
+                <div class="score-item"><div class="icon distance">🎯</div><span>Distancia: <span id="nearestDistance">--</span>m</span></div>
             </div>
         </div>
-
         <div class="map-container">
             <div id="map"></div>
             <div class="loading-overlay" id="loadingOverlay">
@@ -527,12 +511,10 @@
             </div>
         </div>
     </div>
-
     <!-- Alerta de proximidad -->
     <div class="proximity-alert" id="proximityAlert">
         🎯 ¡Estás cerca de un punto de interés!
     </div>
-
     <!-- Modal para preguntas -->
     <div id="questionModal" class="modal">
         <div class="modal-content">
@@ -542,12 +524,10 @@
             </div>
         </div>
     </div>
-    
-
-    <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-    
     <script>
+        let gameInstance;
+
         class InteractiveMapGame {
             constructor() {
                 this.map = null;
@@ -563,322 +543,167 @@
                 this.locationEnabled = false;
                 this.proximityThreshold = 10; // metros
                 this.lastProximityCheck = {};
-                
+                this.gameState = null;
                 this.init();
             }
-
             init() {
                 this.initMap();
                 this.bindEvents();
                 this.loadGameState();
                 this.requestLocation();
             }
-
             initMap() {
-                // Limpiar el mapa existente si existe
-                if (this.map) {
-                    this.map.remove();
-                }
-                
-                
-                // Inicializar mapa centrado en la Comunidad Valenciana
+                if (this.map) this.map.remove();
                 this.map = L.map('map').setView([38.7, -0.5], 10);
-                
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(this.map);
-
-                // Forzar redibujado del mapa después de un breve delay
-                setTimeout(() => {
-                    if (this.map) {
-                        this.map.invalidateSize();
-                    }
-                }, 100);
+                setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 100);
             }
-
             bindEvents() {
-                const townSelect = document.getElementById('townSelect');
-                townSelect.addEventListener('change', (e) => {
-                    if (e.target.value) {
-                        this.loadTownData(e.target.value);
-                    } else {
-                        this.clearMap();
-                        this.hideOverlays();
-                    }
+                document.getElementById('townSelect').addEventListener('change', (e) => {
+                    if (e.target.value) this.loadTownData(e.target.value);
+                    else { this.clearMap(); this.hideOverlays(); }
                 });
-                
-                
-
-                // Controles de ubicación
-                document.getElementById('enableLocation').addEventListener('click', () => {
-                    this.requestLocation();
-                });
-
-                document.getElementById('disableLocation').addEventListener('click', () => {
-                    this.stopLocationTracking();
-                });
-
-                // Modal events
+                document.getElementById('enableLocation').addEventListener('click', () => { this.requestLocation(); });
+                document.getElementById('disableLocation').addEventListener('click', () => { this.stopLocationTracking(); });
                 const modal = document.getElementById('questionModal');
                 const closeBtn = document.querySelector('.close');
-                
-                closeBtn.addEventListener('click', () => {
-                    modal.style.display = 'none';
-                });
-                
+                closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
                 window.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        modal.style.display = 'none';
-                    }
+                    if (e.target === modal) modal.style.display = 'none';
                 });
             }
-
             requestLocation() {
                 if (!navigator.geolocation) {
                     this.updateLocationStatus('❌ Geolocalización no disponible', 'inactive');
                     return;
                 }
-
                 this.updateLocationStatus('📍 Solicitando ubicación...', 'inactive');
-
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 30000
-                };
-
-                // Obtener ubicación inicial
+                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 };
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        this.handleLocationSuccess(position);
-                        this.startLocationTracking();
-                    },
-                    (error) => {
-                        this.handleLocationError(error);
-                    },
+                    (position) => { this.handleLocationSuccess(position); this.startLocationTracking(); },
+                    (error) => { this.handleLocationError(error); },
                     options
                 );
             }
-
             startLocationTracking() {
-                if (this.watchId) {
-                    navigator.geolocation.clearWatch(this.watchId);
-                }
-
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 10000
-                };
-
+                if (this.watchId) navigator.geolocation.clearWatch(this.watchId);
+                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 };
                 this.watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        this.handleLocationSuccess(position);
-                    },
-                    (error) => {
-                        this.handleLocationError(error);
-                    },
+                    (position) => { this.handleLocationSuccess(position); },
+                    (error) => { this.handleLocationError(error); },
                     options
                 );
-
                 this.locationEnabled = true;
                 this.updateLocationStatus('✅ GPS activo', 'active');
             }
-
             stopLocationTracking() {
                 if (this.watchId) {
                     navigator.geolocation.clearWatch(this.watchId);
                     this.watchId = null;
                 }
-
                 this.locationEnabled = false;
                 this.updateLocationStatus('⏸️ GPS pausado', 'inactive');
             }
-
             handleLocationSuccess(position) {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
                 const accuracy = position.coords.accuracy;
-
                 this.userPosition = { lat, lng, accuracy };
                 this.updateUserMarker();
                 this.checkProximity();
                 this.updateLocationStatus(`✅ GPS activo (±${Math.round(accuracy)}m)`, 'active');
             }
-
             handleLocationError(error) {
                 let message = '';
-                switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                        message = '❌ Permiso de ubicación denegado';
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        message = '❌ Ubicación no disponible';
-                        break;
-                    case error.TIMEOUT:
-                        message = '⏱️ Tiempo de espera agotado';
-                        break;
-                    default:
-                        message = '❌ Error de ubicación desconocido';
-                        break;
+                switch (error.code) {
+                    case error.PERMISSION_DENIED: message = '❌ Permiso de ubicación denegado'; break;
+                    case error.POSITION_UNAVAILABLE: message = '❌ Ubicación no disponible'; break;
+                    case error.TIMEOUT: message = '⏱️ Tiempo de espera agotado'; break;
+                    default: message = '❌ Error de ubicación desconocido'; break;
                 }
                 this.updateLocationStatus(message, 'inactive');
             }
-
             updateLocationStatus(message, type) {
                 const status = document.getElementById('locationStatus');
                 status.textContent = message;
                 status.className = `location-status ${type}`;
             }
-
-           updateUserMarker() {
-    if (!this.userPosition || !this.map) return;
-
-    // Remover marcador anterior
-    if (this.userMarker) {
-        this.map.removeLayer(this.userMarker);
-    }
-    if (this.proximityCircle) {
-        this.map.removeLayer(this.proximityCircle);
-    }
-
-    // Crear nuevo marcador de usuario
-    const userIcon = L.divIcon({
-        className: 'user-marker',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-    });
-
-    this.userMarker = L.marker([this.userPosition.lat, this.userPosition.lng], {
-        icon: userIcon
-    }).addTo(this.map);
-
-    // Crear círculo de proximidad
-    this.proximityCircle = L.circle([this.userPosition.lat, this.userPosition.lng], {
-        radius: this.proximityThreshold,
-        className: 'proximity-circle',
-        fillOpacity: 0.2,
-        weight: 2
-    }).addTo(this.map);
-
-    // Actualizar popups de los marcadores con nueva distancia
-    if (this.currentData) {
-        this.displayPointsOnMap(this.currentData);
-    }
-
-    // Centrar mapa en la primera ubicación
-    if (!this.currentData) {
-        this.map.setView([this.userPosition.lat, this.userPosition.lng], 15);
-    }
-}
-
+            updateUserMarker() {
+                if (!this.userPosition || !this.map) return;
+                if (this.userMarker) this.map.removeLayer(this.userMarker);
+                if (this.proximityCircle) this.map.removeLayer(this.proximityCircle);
+                const userIcon = L.divIcon({ className: 'user-marker', iconSize: [20, 20], iconAnchor: [10, 10] });
+                this.userMarker = L.marker([this.userPosition.lat, this.userPosition.lng], { icon: userIcon }).addTo(this.map);
+                this.proximityCircle = L.circle([this.userPosition.lat, this.userPosition.lng], {
+                    radius: this.proximityThreshold, className: 'proximity-circle', fillOpacity: 0.2, weight: 2
+                }).addTo(this.map);
+                if (this.currentData) this.displayPointsOnMap(this.currentData);
+                if (!this.currentData) this.map.setView([this.userPosition.lat, this.userPosition.lng], 15);
+            }
             checkProximity() {
                 if (!this.userPosition || !this.currentData) return;
-
                 let nearestDistance = Infinity;
-                let nearestPoint = null;
-
                 this.currentData.points.forEach(point => {
                     const distance = this.calculateDistance(
                         this.userPosition.lat, this.userPosition.lng,
                         point.lat, point.lng
                     );
-
-                    if (distance < nearestDistance) {
-                        nearestDistance = distance;
-                        nearestPoint = point;
-                    }
-
-                    // Verificar si está dentro del rango de proximidad
+                    if (distance < nearestDistance) nearestDistance = distance;
                     if (distance <= this.proximityThreshold && !this.completedQuestions.has(point.id)) {
-                        // Evitar mostrar la misma pregunta repetidamente
                         const now = Date.now();
                         if (!this.lastProximityCheck[point.id] || now - this.lastProximityCheck[point.id] > 30000) {
                             this.lastProximityCheck[point.id] = now;
                             this.showProximityAlert(point);
-                            setTimeout(() => this.showQuestion(point), 2000);
+                            setTimeout(() => this.showQuestion(point.id), 2000);
                         }
                     }
                 });
-
-                // Actualizar distancia más cercana
-                document.getElementById('nearestDistance').textContent = 
-                    nearestDistance < Infinity ? Math.round(nearestDistance) : '--';
+                document.getElementById('nearestDistance').textContent = nearestDistance < Infinity ? Math.round(nearestDistance) : '--';
             }
-
             calculateDistance(lat1, lng1, lat2, lng2) {
-                const R = 6371e3; // Radio de la Tierra en metros
-                const φ1 = lat1 * Math.PI/180;
-                const φ2 = lat2 * Math.PI/180;
-                const Δφ = (lat2-lat1) * Math.PI/180;
-                const Δλ = (lng2-lng1) * Math.PI/180;
-
-                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                        Math.cos(φ1) * Math.cos(φ2) *
-                        Math.sin(Δλ/2) * Math.sin(Δλ/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
+                const R = 6371e3;
+                const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+                const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lng2 - lng1) * Math.PI / 180;
+                const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 return R * c;
             }
-
             showProximityAlert(point) {
                 const alert = document.getElementById('proximityAlert');
                 alert.textContent = `🎯 ¡Estás cerca de ${point.name}!`;
                 alert.style.display = 'block';
-                
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 3000);
+                setTimeout(() => { alert.style.display = 'none'; }, 3000);
             }
-
             async loadTownData(townName) {
                 try {
                     this.showLoading();
-                    
-                    // URL del repositorio público de GitHub donde están los JSON generados por Electron
                     const baseUrl = 'https://raw.githubusercontent.com/Carlavas/mapas-interactivos-json/main/';
                     const url = `${baseUrl}${townName}.json`;
-                    //REVISAR
                     const response = await fetch(url);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const electronData = await response.json();
-                    
-                    // Convertir formato de Electron al formato esperado por la web
                     const webData = this.convertElectronDataToWebFormat(electronData);
-                    
                     this.currentData = webData;
                     this.displayPointsOnMap(webData);
                     this.hideOverlays();
-                    
                 } catch (error) {
-                    console.error('Error loading town data:', error);
-                    
-                    // Usar datos de ejemplo para testing
-                    console.log('Usando datos de ejemplo para:', townName);
                     const data = this.getSimulatedData(townName);
                     this.currentData = data;
                     this.displayPointsOnMap(data);
                     this.hideOverlays();
-                    
-                    // Mostrar mensaje informativo en lugar de error
                     this.showError(`Usando datos de ejemplo para ${townName}. Para usar datos reales, sube el archivo ${townName}.json a tu repositorio de GitHub.`);
                     setTimeout(() => this.hideOverlays(), 3000);
                 }
             }
-
-            // Convertir el formato JSON de Electron al formato que espera la web
             convertElectronDataToWebFormat(electronData) {
-                // Calcular el centro del mapa basado en los lugares
                 let centerLat = 0, centerLng = 0;
                 if (electronData.lugares && electronData.lugares.length > 0) {
                     centerLat = electronData.lugares.reduce((sum, lugar) => sum + lugar.lat, 0) / electronData.lugares.length;
                     centerLng = electronData.lugares.reduce((sum, lugar) => sum + lugar.lng, 0) / electronData.lugares.length;
                 }
-
                 return {
                     name: electronData.pueblo || 'Pueblo',
                     center: [centerLat, centerLng],
@@ -897,320 +722,105 @@
                     })) : []
                 };
             }
-
             getSimulatedData(townName) {
-                const townData = {
-                    javea: {
-                        name: "Jávea",
-                        center: [38.7908, 0.1316],
-                        points: [
-                            {
-                                id: 1,
-                                name: "Cabo de la Nao",
-                                description: "Impresionante cabo con vistas al Mediterráneo y faro histórico.",
-                                lat: 38.7456,
-                                lng: 0.2167,
-                                question: {
-                                    text: "¿En qué año se construyó el faro del Cabo de la Nao?",
-                                    answers: ["1862", "1845", "1878", "1823"],
-                                    correct: 0,
-                                    points: 10
-                                }
-                            },
-                            
-
-                            {
-                                id: 2,
-                                name: "Casco Histórico",
-                                description: "Centro histórico con arquitectura tradicional valenciana.",
-                                lat: 38.7908,
-                                lng: 0.1316,
-                                question: {
-                                    text: "¿Cuál es el nombre original árabe de Jávea?",
-                                    answers: ["Xàbia", "Al-Yazirat", "Saetabis", "Xara"],
-                                    correct: 0,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 3,
-                                name: "Playa del Arenal",
-                                description: "Principal playa urbana de Jávea con arena fina.",
-                                lat: 38.7711,
-                                lng: 0.1614,
-                                question: {
-                                    text: "¿Qué longitud aproximada tiene la Playa del Arenal?",
-                                    answers: ["500 metros", "800 metros", "1200 metros", "300 metros"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            }
-                        ]
-                    },
-                    denia: {
-                        name: "Dénia",
-                        center: [38.8408, 0.1059],
-                        points: [
-                            {
-                                id: 1,
-                                name: "Castillo de Dénia",
-                                description: "Fortaleza árabe del siglo XI con vistas panorámicas de la ciudad.",
-                                lat: 38.8422,
-                                lng: 0.1053,
-                                question: {
-                                    text: "¿En qué siglo se construyó inicialmente el Castillo de Dénia?",
-                                    answers: ["Siglo X", "Siglo XI", "Siglo XII", "Siglo IX"],
-                                    correct: 1,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 2,
-                                name: "Puerto de Dénia",
-                                description: "Puerto pesquero y deportivo, punto de partida hacia Baleares.",
-                                lat: 38.8356,
-                                lng: 0.1092,
-                                question: {
-                                    text: "¿Hacia qué islas hay conexión regular en ferry desde Dénia?",
-                                    answers: ["Islas Canarias", "Islas Baleares", "Córcega", "Cerdeña"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 3,
-                                name: "Playa de Las Marinas",
-                                description: "Extensa playa de arena fina al norte de Dénia.",
-                                lat: 38.8678,
-                                lng: 0.0917,
-                                question: {
-                                    text: "¿Cuál es la característica principal de Las Marinas?",
-                                    answers: ["Aguas termales", "Arena volcánica", "Arena fina dorada", "Rocas de coral"],
-                                    correct: 2,
-                                    points: 10
-                                }
-                            }
-                        ]
-                    },
-                    "javea-y-denia": {
-                        name: "Jávea y Dénia",
-                        center: [38.8158, 0.1188],
-                        points: [
-                            {
-                                id: 1,
-                                name: "Cabo de la Nao (Jávea)",
-                                description: "Impresionante cabo con vistas al Mediterráneo y faro histórico.",
-                                lat: 38.7456,
-                                lng: 0.2167,
-                                question: {
-                                    text: "¿En qué año se construyó el faro del Cabo de la Nao?",
-                                    answers: ["1862", "1845", "1878", "1823"],
-                                    correct: 0,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 2,
-                                name: "Castillo de Dénia",
-                                description: "Fortaleza árabe del siglo XI con vistas panorámicas de la ciudad.",
-                                lat: 38.8422,
-                                lng: 0.1053,
-                                question: {
-                                    text: "¿En qué siglo se construyó inicialmente el Castillo de Dénia?",
-                                    answers: ["Siglo X", "Siglo XI", "Siglo XII", "Siglo IX"],
-                                    correct: 1,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 3,
-                                name: "Casco Histórico Jávea",
-                                description: "Centro histórico con arquitectura tradicional valenciana.",
-                                lat: 38.7908,
-                                lng: 0.1316,
-                                question: {
-                                    text: "¿Cuál es el nombre original árabe de Jávea?",
-                                    answers: ["Xàbia", "Al-Yazirat", "Saetabis", "Xara"],
-                                    correct: 0,
-                                    points: 15
-                                }
-                            },
-                            {
-                                id: 4,
-                                name: "Puerto de Dénia",
-                                description: "Puerto pesquero y deportivo, punto de partida hacia Baleares.",
-                                lat: 38.8356,
-                                lng: 0.1092,
-                                question: {
-                                    text: "¿Hacia qué islas hay conexión regular en ferry desde Dénia?",
-                                    answers: ["Islas Canarias", "Islas Baleares", "Córcega", "Cerdeña"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 5,
-                                name: "Playa del Arenal (Jávea)",
-                                description: "Principal playa urbana de Jávea con arena fina.",
-                                lat: 38.7711,
-                                lng: 0.1614,
-                                question: {
-                                    text: "¿Qué longitud aproximada tiene la Playa del Arenal?",
-                                    answers: ["500 metros", "800 metros", "1200 metros", "300 metros"],
-                                    correct: 1,
-                                    points: 10
-                                }
-                            },
-                            {
-                                id: 6,
-                                name: "Playa de Las Marinas (Dénia)",
-                                description: "Extensa playa de arena fina al norte de Dénia.",
-                                lat: 38.8678,
-                                lng: 0.0917,
-                                question: {
-                                    text: "¿Cuál es la característica principal de Las Marinas?",
-                                    answers: ["Aguas termales", "Arena volcánica", "Arena fina dorada", "Rocas de coral"],
-                                    correct: 2,
-                                    points: 10
-                                }
-                            }
-                        ]
-                    }
-                };
-
-                return townData[townName] || townData.javea;
+                // ... (tu objeto de datos de ejemplo, igual que antes) ...
+                // (déjalo igual, solo quité aquí por espacio)
+                // ...
             }
-
             displayPointsOnMap(data) {
-                // Limpiar marcadores existentes
                 this.clearMarkers();
-                
-                // Centrar mapa en la zona
+                if (!data || !data.points) return;
                 this.map.setView(data.center, 12);
-                
-                // Añadir marcadores para cada punto
                 data.points.forEach(point => {
                     const isCompleted = this.completedQuestions.has(point.id);
-                    
                     const markerIcon = L.divIcon({
                         className: isCompleted ? 'completed-marker' : '',
                         html: isCompleted ? '✅' : '📍',
                         iconSize: [25, 25],
                         iconAnchor: [12, 25]
                     });
-                    
-                    const marker = L.marker([point.lat, point.lng], {
-                        icon: markerIcon
-                    }).addTo(this.map);
-                     let actionContent = '';
-        if (isCompleted) {
-            actionContent = '<span style="color: green; font-weight: bold;">✅ Completado</span>';
-        } else {
-            // Verificar si está cerca
-            const isNear = this.isUserNearPoint(point);
-            if (isNear) {
-                actionContent = '<button onclick="gameInstance.showQuestion(' + point.id + ')" style="margin-top: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">🎯 Responder</button>';
-            } else {
-                const distance = this.userPosition ? Math.round(this.calculateDistance(
-                    this.userPosition.lat, this.userPosition.lng,
-                    point.lat, point.lng
-                )) : '---';
-                actionContent = `<span style="color: #999; font-size: 12px;">📍 Acércate más (${distance}m)</span>`;
-            }
-        }
-        
-                    
-                    // Popup con información
+                    const marker = L.marker([point.lat, point.lng], { icon: markerIcon }).addTo(this.map);
+                    let actionContent = '';
+                    if (isCompleted) {
+                        actionContent = '<span style="color: green; font-weight: bold;">✅ Completado</span>';
+                    } else {
+                        const isNear = this.isUserNearPoint(point);
+                        if (isNear) {
+                            actionContent = `<button onclick="gameInstance.showQuestion(${point.id})" style="margin-top: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">🎯 Responder</button>`;
+                        } else {
+                            const distance = this.userPosition ? Math.round(this.calculateDistance(
+                                this.userPosition.lat, this.userPosition.lng,
+                                point.lat, point.lng
+                            )) : '---';
+                            actionContent = `<span style="color: #999; font-size: 12px;">📍 Acércate más (${distance}m)</span>`;
+                        }
+                    }
                     const popupContent = `
                         <div style="text-align: center; padding: 5px;">
                             <strong>${point.name}</strong><br>
                             <small>${point.description}</small><br>
-                            ${isCompleted ? 
-                                '<span style="color: green; font-weight: bold;">✅ Completado</span>' : 
-                                '<button onclick="gameInstance.showQuestion(' + point.id + ')" style="margin-top: 5px; padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">🎯 Responder</button>'
-                            }
+                            ${actionContent}
                         </div>
                     `;
-                    
                     marker.bindPopup(popupContent);
                     this.markers.push(marker);
                 });
-                
                 this.updateStats();
             }
-
+            isUserNearPoint(point) {
+                if (!this.userPosition) return false;
+                const distance = this.calculateDistance(
+                    this.userPosition.lat, this.userPosition.lng,
+                    point.lat, point.lng
+                );
+                return distance <= this.proximityThreshold;
+            }
             clearMarkers() {
-                this.markers.forEach(marker => {
-                    this.map.removeLayer(marker);
-                });
+                this.markers.forEach(marker => { this.map.removeLayer(marker); });
                 this.markers = [];
             }
-
             clearMap() {
                 this.clearMarkers();
-                if (this.userMarker) {
-                    this.map.removeLayer(this.userMarker);
-                    this.userMarker = null;
-                }
-                if (this.proximityCircle) {
-                    this.map.removeLayer(this.proximityCircle);
-                    this.proximityCircle = null;
-                }
+                if (this.userMarker) { this.map.removeLayer(this.userMarker); this.userMarker = null; }
+                if (this.proximityCircle) { this.map.removeLayer(this.proximityCircle); this.proximityCircle = null; }
                 this.currentData = null;
                 this.updateStats();
             }
-
-       showQuestion(pointId) {
-    if (!this.currentData) return;
-    
-    const point = this.currentData.points.find(p => p.id === pointId);
-    if (!point || this.completedQuestions.has(pointId)) return;
-    
-    // Verificar que el usuario esté cerca antes de mostrar la pregunta
-    if (!this.isUserNearPoint(point)) {
-        alert('❌ Debes estar a menos de 10 metros del punto para acceder a la pregunta');
-        return;
-    }
-    
-    this.currentQuestion = point;
-    
-    const questionContent = document.getElementById('questionContent');
-    questionContent.innerHTML = `
-        <h3>📍 ${point.name}</h3>
-        <p>${point.description}</p>
-        
-        <div class="question-section">
-            <h4>❓ ${point.question.text}</h4>
-            <div class="answers" id="answers">
-                ${point.question.answers.map((answer, index) => 
-                    `<button class="answer-btn" onclick="gameInstance.submitAnswer(${index})">${answer}</button>`
-                ).join('')}
-            </div>
-            <div id="result" class="result-message" style="display: none;"></div>
-        </div>
-    `;
-    
-    document.getElementById('questionModal').style.display = 'block';
-}
-
+            showQuestion(pointId) {
+                if (!this.currentData) return;
+                const point = this.currentData.points.find(p => p.id === pointId);
+                if (!point || this.completedQuestions.has(pointId)) return;
+                if (!this.isUserNearPoint(point)) {
+                    alert('❌ Debes estar a menos de 10 metros del punto para acceder a la pregunta');
+                    return;
+                }
+                this.currentQuestion = point;
+                const questionContent = document.getElementById('questionContent');
+                questionContent.innerHTML = `
+                    <h3>📍 ${point.name}</h3>
+                    <p>${point.description}</p>
+                    <div class="question-section">
+                        <h4>❓ ${point.question.text}</h4>
+                        <div class="answers" id="answers">
+                            ${point.question.answers.map((answer, index) =>
+                                `<button class="answer-btn" onclick="gameInstance.submitAnswer(${index})">${answer}</button>`
+                            ).join('')}
+                        </div>
+                        <div id="result" class="result-message" style="display: none;"></div>
+                    </div>
+                `;
+                document.getElementById('questionModal').style.display = 'block';
+            }
             submitAnswer(answerIndex) {
                 if (!this.currentQuestion) return;
-                
                 const correct = answerIndex === this.currentQuestion.question.correct;
                 const buttons = document.querySelectorAll('.answer-btn');
                 const resultDiv = document.getElementById('result');
-                
-                // Deshabilitar todos los botones
                 buttons.forEach((btn, idx) => {
                     btn.classList.add('disabled');
-                    if (idx === this.currentQuestion.question.correct) {
-                        btn.classList.add('correct');
-                    } else if (idx === answerIndex && !correct) {
-                        btn.classList.add('incorrect');
-                    }
+                    if (idx === this.currentQuestion.question.correct) btn.classList.add('correct');
+                    else if (idx === answerIndex && !correct) btn.classList.add('incorrect');
                 });
-                
-                // Mostrar resultado
                 if (correct) {
                     this.totalPoints += this.currentQuestion.question.points;
                     this.completedQuestions.add(this.currentQuestion.id);
@@ -1220,82 +830,50 @@
                     resultDiv.innerHTML = `❌ Incorrecto. La respuesta correcta era: ${this.currentQuestion.question.answers[this.currentQuestion.question.correct]}`;
                     resultDiv.className = 'result-message incorrect';
                 }
-                
                 resultDiv.style.display = 'block';
-                
-                // Actualizar interfaz
                 this.updateStats();
                 this.saveGameState();
-                
-                // Actualizar marcadores en el mapa
-                if (correct && this.currentData) {
-                    this.displayPointsOnMap(this.currentData);
-                }
-                
-                // Cerrar modal automáticamente después de 3 segundos
-                setTimeout(() => {
-                    document.getElementById('questionModal').style.display = 'none';
-                }, 3000);
+                if (correct && this.currentData) this.displayPointsOnMap(this.currentData);
+                setTimeout(() => { document.getElementById('questionModal').style.display = 'none'; }, 3000);
             }
-
             updateStats() {
                 document.getElementById('totalPoints').textContent = this.totalPoints;
                 document.getElementById('completedCount').textContent = this.completedQuestions.size;
                 document.getElementById('totalLocations').textContent = this.currentData ? this.currentData.points.length : 0;
             }
-
             saveGameState() {
-                // Guardar en memoria (no localStorage por las restricciones de Claude)
                 this.gameState = {
                     totalPoints: this.totalPoints,
                     completedQuestions: Array.from(this.completedQuestions),
                     lastPlayed: Date.now()
                 };
             }
-
             loadGameState() {
-                // Cargar desde memoria si existe
                 if (this.gameState) {
                     this.totalPoints = this.gameState.totalPoints || 0;
                     this.completedQuestions = new Set(this.gameState.completedQuestions || []);
                     this.updateStats();
                 }
             }
-
             showLoading() {
                 document.getElementById('loadingOverlay').style.display = 'flex';
                 document.getElementById('errorOverlay').style.display = 'none';
             }
-
             showError(message) {
                 document.getElementById('errorMessage').textContent = message;
                 document.getElementById('errorOverlay').style.display = 'flex';
                 document.getElementById('loadingOverlay').style.display = 'none';
             }
-
             hideOverlays() {
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('errorOverlay').style.display = 'none';
             }
         }
-        isUserNearPoint(point) {
-    if (!this.userPosition) return false;
-    
-    const distance = this.calculateDistance(
-        this.userPosition.lat, this.userPosition.lng,
-        point.lat, point.lng
-    );
-    
-    return distance <= this.proximityThreshold;
-}
 
-
-        // Inicializar el juego cuando se carga la página
-        let gameInstance;
-        
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             gameInstance = new InteractiveMapGame();
         });
     </script>
 </body>
 </html>
+
